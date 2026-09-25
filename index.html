@@ -72,6 +72,16 @@
         <button type="button" id="history-back-btn">開始画面に戻る</button>
         <button type="button" id="history-clear-btn" class="danger-btn">履歴をすべて削除</button>
       </div>
+      <div class="history-transfer">
+        <h3>ほかの端末と履歴をまとめる</h3>
+        <p class="history-transfer-note">「履歴を書き出す」でファイルを保存し、もう一方の端末（iPhone・パソコン）で「履歴を読み込む」からそのファイルを選ぶと、両方の履歴がまとまります。同じ履歴が重複することはありません。</p>
+        <div class="history-transfer-actions">
+          <button type="button" id="history-export-btn">履歴を書き出す</button>
+          <button type="button" id="history-import-btn">履歴を読み込む</button>
+          <input type="file" id="history-import-input" hidden>
+        </div>
+        <p id="history-transfer-message" class="history-transfer-message" hidden></p>
+      </div>
     </section>
     <footer>
       <p class="score-disclaimer">出典：独立行政法人 情報処理推進機構（IPA） ITパスポート試験 公開問題</p>

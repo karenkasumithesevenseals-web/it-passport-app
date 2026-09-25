@@ -339,6 +339,36 @@ button:disabled {
   }
 }
 
+.history-transfer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.history-transfer h3 {
+  margin: 0 0 8px;
+}
+
+.history-transfer-note {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.history-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-transfer-message {
+  color: #1a8a3a;
+  font-weight: bold;
+}
+
+.history-transfer-message.error {
+  color: #d33;
+}
+
 .history-delete-btn {
   padding: 4px 10px;
   font-size: 0.85rem;

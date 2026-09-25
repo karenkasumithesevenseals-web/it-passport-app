@@ -1,6 +1,7 @@
 const QUESTION_PROGRESS_STORAGE_KEY = "itPassportQuestionProgress";
 const EXAM_STATE_STORAGE_KEY = "itPassportExamState";
 const HISTORY_STORAGE_KEY = "itPassportHistory";
+const HISTORY_EXPORT_FORMAT = "it-passport-history";
 
 const CATEGORIES = [
   { code: "strategy", label: "ストラテジ系", ratio: 0.35 },
@@ -50,6 +51,10 @@ const historyChartEl = document.getElementById("history-chart");
 const historyTableEl = document.getElementById("history-table");
 const historyBackBtn = document.getElementById("history-back-btn");
 const historyClearBtn = document.getElementById("history-clear-btn");
+const historyExportBtn = document.getElementById("history-export-btn");
+const historyImportBtn = document.getElementById("history-import-btn");
+const historyImportInput = document.getElementById("history-import-input");
+const historyTransferMessageEl = document.getElementById("history-transfer-message");
 
 let examState = null;
 let timerIntervalId = null;
@@ -615,13 +620,136 @@ function clearHistory() {
   renderHistoryView();
 }
 
+function showTransferMessage(text, isError) {
+  historyTransferMessageEl.textContent = text;
+  historyTransferMessageEl.classList.toggle("error", isError);
+  historyTransferMessageEl.hidden = false;
+}
+
+function hideTransferMessage() {
+  historyTransferMessageEl.hidden = true;
+}
+
+function buildHistoryExportFileName() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return "itpassport-history-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate())
+    + "-" + pad(d.getHours()) + pad(d.getMinutes()) + ".json";
+}
+
+async function exportHistory() {
+  const history = loadHistory();
+  if (history.length === 0) {
+    showTransferMessage("書き出す履歴がありません。", true);
+    return;
+  }
+  const payload = { format: HISTORY_EXPORT_FORMAT, version: 1, exportedAt: new Date().toISOString(), history };
+  const fileName = buildHistoryExportFileName();
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const doneText = history.length + "件の履歴を書き出しました。もう一方の端末で「履歴を読み込む」を押してください。";
+  // iPhoneなどタッチ操作の端末では共有メニュー(AirDrop・「ファイル」に保存など)を出す。
+  // パソコンで共有メニューを出すとかえって分かりにくいので、そちらは普通のダウンロードにする
+  const file = new File([blob], fileName, { type: "application/json" });
+  const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+  if (isTouchDevice && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "ITパスポート模試の履歴" });
+      showTransferMessage(doneText, false);
+    } catch (err) {
+      if (err.name !== "AbortError") showTransferMessage("書き出しに失敗しました。", true);
+    }
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showTransferMessage(doneText, false);
+}
+
+// 読み込むファイルは外から来るので、表示に使う項目がすべて正しい型か確かめる
+function isValidHistoryEntry(entry) {
+  return !!entry && typeof entry === "object"
+    && typeof entry.id === "number"
+    && typeof entry.date === "string" && !Number.isNaN(Date.parse(entry.date))
+    && typeof entry.percentageScore === "number"
+    && typeof entry.overallScoreApprox === "number"
+    && !!entry.categoryBreakdown && typeof entry.categoryBreakdown === "object"
+    && CATEGORIES.every((cat) => {
+      const data = entry.categoryBreakdown[cat.code];
+      return !!data && typeof data.correct === "number" && typeof data.total === "number";
+    });
+}
+
+function historyEntryKey(entry) {
+  return entry.id + "|" + entry.date;
+}
+
+function importHistoryFromText(text) {
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    showTransferMessage("このファイルは読み込めません。「履歴を書き出す」で作ったファイルを選んでください。", true);
+    return;
+  }
+  const entries = payload && payload.format === HISTORY_EXPORT_FORMAT ? payload.history : null;
+  const validEntries = Array.isArray(entries) ? entries.filter(isValidHistoryEntry) : [];
+  if (validEntries.length === 0) {
+    showTransferMessage("このファイルには読み込める履歴がありません。「履歴を書き出す」で作ったファイルを選んでください。", true);
+    return;
+  }
+  const history = loadHistory();
+  const existingKeys = new Set(history.map(historyEntryKey));
+  let addedCount = 0;
+  validEntries.forEach((entry) => {
+    const key = historyEntryKey(entry);
+    if (existingKeys.has(key)) return;
+    history.push(entry);
+    existingKeys.add(key);
+    addedCount++;
+  });
+  history.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  saveHistory(history);
+  renderHistoryView();
+  if (addedCount === 0) {
+    showTransferMessage("新しい履歴はありませんでした（すべて読み込み済みです）。", false);
+    return;
+  }
+  const skippedCount = validEntries.length - addedCount;
+  showTransferMessage(addedCount + "件の履歴を追加しました。"
+    + (skippedCount > 0 ? "（" + skippedCount + "件はすでにあるため追加していません）" : ""), false);
+}
+
+async function handleImportFileSelected() {
+  const file = historyImportInput.files[0];
+  // 同じファイルをもう一度選んでも反応するように選択を空に戻す
+  historyImportInput.value = "";
+  if (!file) return;
+  try {
+    importHistoryFromText(await file.text());
+  } catch {
+    showTransferMessage("ファイルを読み込めませんでした。", true);
+  }
+}
+
 function init() {
   startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
   startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
   resumeExamBtn.addEventListener("click", resumeExam);
-  showHistoryBtn.addEventListener("click", renderHistoryView);
+  showHistoryBtn.addEventListener("click", () => {
+    hideTransferMessage();
+    renderHistoryView();
+  });
   historyBackBtn.addEventListener("click", renderStartView);
   historyClearBtn.addEventListener("click", clearHistory);
+  historyExportBtn.addEventListener("click", exportHistory);
+  historyImportBtn.addEventListener("click", () => historyImportInput.click());
+  historyImportInput.addEventListener("change", handleImportFileSelected);
   historyTableEl.addEventListener("click", (event) => {
     const btn = event.target.closest(".history-delete-btn");
     if (btn) deleteHistoryEntry(Number(btn.dataset.index));

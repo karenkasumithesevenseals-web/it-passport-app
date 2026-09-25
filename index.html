@@ -27,6 +27,7 @@
       <div class="start-actions">
         <button type="button" id="start-exam-btn">新しい試験を開始</button>
         <button type="button" id="start-quick-exam-btn">お試し10問</button>
+        <button type="button" id="start-review-btn" disabled>間違えた問題を復習</button>
         <button type="button" id="show-history-btn">履歴を見る</button>
       </div>
     </section>
@@ -50,7 +51,8 @@
 
     <section class="view" id="view-results">
       <p id="results-auto-banner" class="auto-banner" hidden>制限時間になったため自動的に採点されました。</p>
-      <h2>結果</h2>
+      <h2 id="results-heading">結果</h2>
+      <p id="results-pass-banner" class="pass-banner" hidden></p>
       <p id="results-overall"></p>
       <div class="table-scroll"><table id="results-category-table" class="score-table"></table></div>
       <p class="score-disclaimer" id="results-disclaimer"></p>

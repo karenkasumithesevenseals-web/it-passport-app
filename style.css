@@ -245,6 +245,33 @@ button:disabled {
   padding: 10px 12px;
 }
 
+.pass-banner {
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: bold;
+}
+
+.pass-banner.passed {
+  background: #e8f7ec;
+  border: 1px solid #7cc98f;
+  color: #1e7a35;
+}
+
+.pass-banner.failed {
+  background: #fdecec;
+  border: 1px solid #f0a0a0;
+  color: #b3261e;
+}
+
+.pass-text {
+  color: #1e7a35;
+  font-weight: bold;
+}
+
+.fail-text {
+  color: #b3261e;
+}
+
 .table-scroll {
   overflow-x: auto;
   margin: 12px 0;

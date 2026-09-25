@@ -17,6 +17,11 @@ const EXAM_TIME_LIMIT_MINUTES = 120;
 const MIN_EXAM_TIME_LIMIT_MINUTES = 5;
 const SCORE_SCALE_MAX = 1000;
 const PASSING_PERCENTAGE = 60;
+// 本番の合格基準: 総合600点以上 かつ 3分野それぞれ300点以上(いずれも1000点満点)
+const PASSING_TOTAL_SCORE = 600;
+const PASSING_CATEGORY_SCORE = 300;
+const EXAM_MODE_NORMAL = "normal";
+const EXAM_MODE_REVIEW = "review";
 const HISTORY_CHART_MAX_POINTS = 20;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TIMER_TICK_MS = 1000;
@@ -27,6 +32,7 @@ const startExamBtn = document.getElementById("start-exam-btn");
 const startQuickExamBtn = document.getElementById("start-quick-exam-btn");
 const resumeExamBtn = document.getElementById("resume-exam-btn");
 const showHistoryBtn = document.getElementById("show-history-btn");
+const startReviewBtn = document.getElementById("start-review-btn");
 
 const examCategoryTagEl = document.getElementById("exam-category-tag");
 const examProgressEl = document.getElementById("exam-progress");
@@ -40,6 +46,8 @@ const nextQuestionBtn = document.getElementById("next-question-btn");
 const submitExamBtn = document.getElementById("submit-exam-btn");
 
 const resultsAutoBannerEl = document.getElementById("results-auto-banner");
+const resultsHeadingEl = document.getElementById("results-heading");
+const resultsPassBannerEl = document.getElementById("results-pass-banner");
 const resultsOverallEl = document.getElementById("results-overall");
 const resultsCategoryTableEl = document.getElementById("results-category-table");
 const resultsDisclaimerEl = document.getElementById("results-disclaimer");
@@ -216,8 +224,40 @@ function drawQuestionsForExam(desiredCount) {
   return ids;
 }
 
+function isReviewEntry(entry) {
+  return entry.mode === EXAM_MODE_REVIEW;
+}
+
+// 履歴(模試と復習の両方)を古い順にたどり、各問題の「最後に解いたときの回答」が
+// 不正解・未回答だった問題を集める。復習で正解すれば、その問題は対象から外れる
+function collectWrongQuestionIds() {
+  const history = loadHistory()
+    .slice()
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  const lastCorrect = new Map();
+  history.forEach((entry) => {
+    // 回答の記録がない履歴(読み込んだ古いデータなど)は飛ばす
+    if (!Array.isArray(entry.questionIds) || !entry.answers || typeof entry.answers !== "object") return;
+    entry.questionIds.forEach((id) => {
+      const question = QUESTIONS_BY_ID.get(id);
+      if (!question) return;
+      lastCorrect.set(id, entry.answers[id] === question.answerIndex);
+    });
+  });
+  return [...lastCorrect].filter(([, correct]) => !correct).map(([id]) => id);
+}
+
 function startNewExam(desiredCount) {
-  const questionIds = drawQuestionsForExam(desiredCount);
+  startExam(drawQuestionsForExam(desiredCount), EXAM_MODE_NORMAL);
+}
+
+function startReviewExam() {
+  const questionIds = shuffleArray(collectWrongQuestionIds()).slice(0, EXAM_QUESTION_COUNT);
+  if (questionIds.length === 0) return;
+  startExam(questionIds, EXAM_MODE_REVIEW);
+}
+
+function startExam(questionIds, mode) {
   const actualCount = questionIds.length;
   // 制限時間は本番(100問・120分)の比率に合わせて出題数に応じて比例縮小する
   const timeLimitMs = Math.max(
@@ -226,6 +266,7 @@ function startNewExam(desiredCount) {
   ) * 60000;
   examState = {
     schemaVersion: 1,
+    mode,
     startTime: Date.now(),
     timeLimitMs,
     questionIds,
@@ -270,6 +311,8 @@ function submitExam(auto) {
     schemaVersion: 1,
     id: generateHistoryId(),
     date: new Date().toISOString(),
+    // 以前に保存された途中の試験には mode がないので通常の模試として扱う
+    mode: examState.mode || EXAM_MODE_NORMAL,
     questionIds: examState.questionIds,
     answers: examState.answers,
     totalQuestions: breakdown.totalQuestions,
@@ -379,6 +422,9 @@ function renderStartView() {
   } else {
     resumeBannerEl.hidden = true;
   }
+  const wrongCount = collectWrongQuestionIds().length;
+  startReviewBtn.textContent = "間違えた問題を復習（" + wrongCount + "問）";
+  startReviewBtn.disabled = wrongCount === 0;
   showView("start");
 }
 
@@ -447,8 +493,42 @@ function buildCategoryTableHtml(categoryBreakdown) {
   return html;
 }
 
+// 本番の基準で合否を判定し、足りなかった項目の説明も返す
+function judgePass(entry) {
+  const reasons = [];
+  if (entry.overallScoreApprox < PASSING_TOTAL_SCORE) {
+    reasons.push("総合が" + PASSING_TOTAL_SCORE + "点未満");
+  }
+  CATEGORIES.forEach((cat) => {
+    const data = entry.categoryBreakdown[cat.code];
+    // 読み込んだ古い履歴には scoreApprox がないことがあるので正答率から計算し直す
+    const score = typeof data.scoreApprox === "number"
+      ? data.scoreApprox
+      : (data.total > 0 ? Math.round((data.correct / data.total) * SCORE_SCALE_MAX) : 0);
+    if (score < PASSING_CATEGORY_SCORE) {
+      reasons.push(cat.label + "が" + PASSING_CATEGORY_SCORE + "点未満");
+    }
+  });
+  return { passed: reasons.length === 0, reasons };
+}
+
+function renderPassBanner(historyEntry) {
+  if (isReviewEntry(historyEntry)) {
+    resultsPassBannerEl.hidden = true;
+    return;
+  }
+  const judgement = judgePass(historyEntry);
+  resultsPassBannerEl.className = "pass-banner " + (judgement.passed ? "passed" : "failed");
+  resultsPassBannerEl.textContent = judgement.passed
+    ? "合格ライン到達！（総合" + PASSING_TOTAL_SCORE + "点以上・全分野" + PASSING_CATEGORY_SCORE + "点以上）"
+    : "不合格：" + judgement.reasons.join("、");
+  resultsPassBannerEl.hidden = false;
+}
+
 function renderResultsView(historyEntry, auto) {
   resultsAutoBannerEl.hidden = !auto;
+  resultsHeadingEl.textContent = isReviewEntry(historyEntry) ? "復習の結果" : "結果";
+  renderPassBanner(historyEntry);
   resultsOverallEl.textContent = "総合: " + historyEntry.correctCount + " / " + historyEntry.totalQuestions
     + "問正解 (" + historyEntry.percentageScore.toFixed(1) + "%) 推定スコア " + historyEntry.overallScoreApprox + "点";
   resultsCategoryTableEl.innerHTML = buildCategoryTableHtml(historyEntry.categoryBreakdown);
@@ -585,20 +665,25 @@ function renderHistoryChart(history) {
 
 function renderHistoryView() {
   const history = loadHistory();
-  renderHistoryChart(history);
-  let html = "<tr><th>日時</th><th>総合正答率</th><th>推定スコア</th><th>ストラテジ系</th><th>マネジメント系</th><th>テクノロジ系</th><th>操作</th></tr>";
-  history.slice().reverse().forEach((entry, i) => {
+  // 復習の回は苦手な問題ばかりで成績の推移が乱れるので、グラフと表には模試だけを出す
+  const examRows = history
+    .map((entry, index) => ({ entry, index }))
+    .filter((row) => !isReviewEntry(row.entry));
+  renderHistoryChart(examRows.map((row) => row.entry));
+  let html = "<tr><th>日時</th><th>総合正答率</th><th>推定スコア</th><th>判定</th><th>ストラテジ系</th><th>マネジメント系</th><th>テクノロジ系</th><th>操作</th></tr>";
+  examRows.slice().reverse().forEach(({ entry, index }) => {
     const dateLabel = new Date(entry.date).toLocaleString("ja-JP");
+    const passed = judgePass(entry).passed;
     html += "<tr><td>" + dateLabel + "</td><td>" + entry.percentageScore.toFixed(1) + "%</td><td>"
-      + entry.overallScoreApprox + "</td>";
+      + entry.overallScoreApprox + "</td><td class=\"" + (passed ? "pass-text" : "fail-text") + "\">"
+      + (passed ? "合格" : "不合格") + "</td>";
     CATEGORIES.forEach((cat) => {
       const data = entry.categoryBreakdown[cat.code];
       html += "<td>" + data.correct + "/" + data.total + "</td>";
     });
-    // 表は新しい順に並べているので、保存データ上の位置に戻して持たせる
-    const originalIndex = history.length - 1 - i;
+    // 削除ボタンには保存データ上の位置を持たせる
     html += "<td><button type=\"button\" class=\"danger-btn history-delete-btn\" data-index=\""
-      + originalIndex + "\">削除</button></td>";
+      + index + "\">削除</button></td>";
     html += "</tr>";
   });
   historyTableEl.innerHTML = html;
@@ -740,6 +825,7 @@ async function handleImportFileSelected() {
 function init() {
   startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
   startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
+  startReviewBtn.addEventListener("click", startReviewExam);
   resumeExamBtn.addEventListener("click", resumeExam);
   showHistoryBtn.addEventListener("click", () => {
     hideTransferMessage();

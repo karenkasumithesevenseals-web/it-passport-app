@@ -1,0 +1,402 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background: #f4f4f8;
+  font-family: "Segoe UI", "Hiragino Sans", sans-serif;
+  padding: 24px 0;
+}
+
+.app {
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  align-self: flex-start;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+h3 {
+  margin: 24px 0 12px;
+  font-size: 1.1rem;
+}
+
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #4a6cf7;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background: #3a5ce0;
+  }
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.resume-banner {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.resume-banner p {
+  margin: 0 0 8px;
+}
+
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exam-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.category-tag {
+  background: #eef2ff;
+  color: #4a6cf7;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.exam-timer {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.question-text {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 0 16px;
+  white-space: pre-wrap;
+}
+
+.question-images {
+  margin: 0 0 16px;
+}
+
+.question-image {
+  max-width: 100%;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  display: block;
+  margin: 0 0 8px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.choice-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #c5c8d6;
+  color: #222;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  text-align: left;
+  transition: transform 0.08s;
+}
+
+/* 選択肢の頭に「ア〜エ」の記号を付ける(折り返した行は記号の右に揃う) */
+.choice-btn::before {
+  flex: 0 0 1.8em;
+  height: 1.8em;
+  border: 1px solid #c5c8d6;
+  border-radius: 50%;
+  background: #fff;
+  color: #4a6cf7;
+  font-weight: bold;
+  line-height: 1.8em;
+  text-align: center;
+}
+
+.choice-btn:nth-child(1)::before { content: "ア"; }
+.choice-btn:nth-child(2)::before { content: "イ"; }
+.choice-btn:nth-child(3)::before { content: "ウ"; }
+.choice-btn:nth-child(4)::before { content: "エ"; }
+
+/* スマホでは押した後も hover が残るので、マウスのある端末だけに限定 */
+@media (hover: hover) {
+  .choice-btn:not(.selected):hover:not(:disabled) {
+    background: #eef2ff;
+  }
+}
+
+.choice-btn:active {
+  transform: scale(0.98);
+}
+
+.choice-btn.selected,
+.choice-btn.selected:hover {
+  background: #4a6cf7;
+  border: 2px solid #2f4fd6;
+  padding: 11px 13px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.choice-btn.selected::before {
+  content: "✓";
+  border-color: #fff;
+}
+
+.jump-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.jump-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: #eee;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.jump-btn.answered {
+  background: #c7d2fe;
+  color: #26327a;
+}
+
+.jump-btn.current {
+  outline: 2px solid #4a6cf7;
+  outline-offset: 2px;
+}
+
+.exam-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.exam-nav button:last-child {
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .jump-grid {
+    gap: 4px;
+  }
+
+  .jump-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+}
+
+.auto-banner {
+  background: #fff4e5;
+  border: 1px solid #ffcf87;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.score-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.score-table th,
+.score-table td {
+  border: 1px solid #eee;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.history-chart {
+  margin: 12px 0;
+  color: #555;
+}
+
+.history-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-grid {
+  stroke: #eee;
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  font-size: 12px;
+  fill: #777;
+}
+
+.chart-pass-line {
+  stroke: #1a8a3a;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.chart-pass-label {
+  font-size: 12px;
+  fill: #1a8a3a;
+}
+
+.chart-line {
+  fill: none;
+  stroke: #4a6cf7;
+  stroke-width: 2.5;
+}
+
+.chart-dot {
+  fill: #fff;
+  stroke: #4a6cf7;
+  stroke-width: 2;
+}
+
+.chart-dot.pass {
+  fill: #4a6cf7;
+}
+
+.history-chart-caption {
+  font-size: 0.8rem;
+  color: #777;
+  margin: 4px 0 0;
+}
+
+.score-disclaimer {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.results-actions,
+.history-actions {
+  margin: 16px 0;
+}
+
+.danger-btn {
+  background: #e5484d;
+}
+
+@media (hover: hover) {
+  button.danger-btn:hover:not(:disabled) {
+    background: #c93a3f;
+  }
+}
+
+.history-delete-btn {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.review-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.review-question-text {
+  font-weight: bold;
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.review-choices {
+  list-style: none;
+  margin: 0 0 8px;
+  padding-left: 0;
+}
+
+.review-choices li {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-left: 4px solid transparent;
+  line-height: 1.6;
+}
+
+.review-choices li::before {
+  flex: 0 0 1.2em;
+  font-weight: bold;
+}
+
+.review-choices li:nth-child(1)::before { content: "ア"; }
+.review-choices li:nth-child(2)::before { content: "イ"; }
+.review-choices li:nth-child(3)::before { content: "ウ"; }
+.review-choices li:nth-child(4)::before { content: "エ"; }
+
+.review-choices .correct-choice {
+  background: #e8f6ec;
+  border-left-color: #1a8a3a;
+  color: #1a8a3a;
+  font-weight: bold;
+}
+
+.review-choices .wrong-choice {
+  background: #fdecec;
+  border-left-color: #d33;
+  color: #d33;
+}
+
+.review-explanation {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem;
+}

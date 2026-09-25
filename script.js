@@ -1,0 +1,639 @@
+const QUESTION_PROGRESS_STORAGE_KEY = "itPassportQuestionProgress";
+const EXAM_STATE_STORAGE_KEY = "itPassportExamState";
+const HISTORY_STORAGE_KEY = "itPassportHistory";
+
+const CATEGORIES = [
+  { code: "strategy", label: "ストラテジ系", ratio: 0.35 },
+  { code: "management", label: "マネジメント系", ratio: 0.20 },
+  { code: "technology", label: "テクノロジ系", ratio: 0.45 }
+];
+const CATEGORY_BY_CODE = new Map(CATEGORIES.map((cat) => [cat.code, cat]));
+const QUESTIONS_BY_ID = new Map(QUESTIONS.map((q) => [q.id, q]));
+
+const EXAM_QUESTION_COUNT = 100;
+const QUICK_EXAM_QUESTION_COUNT = 10;
+const EXAM_TIME_LIMIT_MINUTES = 120;
+const MIN_EXAM_TIME_LIMIT_MINUTES = 5;
+const SCORE_SCALE_MAX = 1000;
+const PASSING_PERCENTAGE = 60;
+const HISTORY_CHART_MAX_POINTS = 20;
+const SVG_NS = "http://www.w3.org/2000/svg";
+const TIMER_TICK_MS = 1000;
+const SCORE_DISCLAIMER_TEXT = "この1000点満点スコアは正答率に基づく独自の簡易換算であり、IPAの公式スコア(項目反応理論に基づく)とは異なります。参考値としてご利用ください。";
+
+const resumeBannerEl = document.getElementById("resume-banner");
+const startExamBtn = document.getElementById("start-exam-btn");
+const startQuickExamBtn = document.getElementById("start-quick-exam-btn");
+const resumeExamBtn = document.getElementById("resume-exam-btn");
+const showHistoryBtn = document.getElementById("show-history-btn");
+
+const examCategoryTagEl = document.getElementById("exam-category-tag");
+const examProgressEl = document.getElementById("exam-progress");
+const examTimerEl = document.getElementById("exam-timer");
+const examQuestionTextEl = document.getElementById("exam-question-text");
+const examQuestionImagesEl = document.getElementById("exam-question-images");
+const examChoicesEl = document.getElementById("exam-choices");
+const examJumpGridEl = document.getElementById("exam-jump-grid");
+const prevQuestionBtn = document.getElementById("prev-question-btn");
+const nextQuestionBtn = document.getElementById("next-question-btn");
+const submitExamBtn = document.getElementById("submit-exam-btn");
+
+const resultsAutoBannerEl = document.getElementById("results-auto-banner");
+const resultsOverallEl = document.getElementById("results-overall");
+const resultsCategoryTableEl = document.getElementById("results-category-table");
+const resultsDisclaimerEl = document.getElementById("results-disclaimer");
+const resultsReviewEl = document.getElementById("results-review");
+const resultsBackBtn = document.getElementById("results-back-btn");
+const resultsBackBottomBtn = document.getElementById("results-back-bottom-btn");
+
+const historyChartEl = document.getElementById("history-chart");
+const historyTableEl = document.getElementById("history-table");
+const historyBackBtn = document.getElementById("history-back-btn");
+const historyClearBtn = document.getElementById("history-clear-btn");
+
+let examState = null;
+let timerIntervalId = null;
+
+function loadQuestionProgress() {
+  try {
+    const raw = localStorage.getItem(QUESTION_PROGRESS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveQuestionProgress(progress) {
+  try {
+    localStorage.setItem(QUESTION_PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+  } catch {}
+}
+
+function loadExamState() {
+  try {
+    const raw = localStorage.getItem(EXAM_STATE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveExamState(state) {
+  try {
+    localStorage.setItem(EXAM_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function clearExamState() {
+  try {
+    localStorage.removeItem(EXAM_STATE_STORAGE_KEY);
+  } catch {}
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history) {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch {}
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function ensureProgressInitialized(progress) {
+  for (const cat of CATEGORIES) {
+    if (!progress[cat.code]) {
+      progress[cat.code] = { unseenIds: [], seenIds: [] };
+    }
+  }
+  for (const cat of CATEGORIES) {
+    const bag = progress[cat.code];
+    const liveIds = QUESTIONS.filter((q) => q.category === cat.code).map((q) => q.id);
+    const liveIdSet = new Set(liveIds);
+    let added = false;
+    for (const id of liveIds) {
+      if (!bag.unseenIds.includes(id) && !bag.seenIds.includes(id)) {
+        bag.unseenIds.push(id);
+        added = true;
+      }
+    }
+    bag.unseenIds = bag.unseenIds.filter((id) => liveIdSet.has(id));
+    bag.seenIds = bag.seenIds.filter((id) => liveIdSet.has(id));
+    if (added) {
+      shuffleArray(bag.unseenIds);
+    }
+  }
+  return progress;
+}
+
+function drawFromCategoryBag(progress, categoryCode, count) {
+  const bag = progress[categoryCode];
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    if (bag.unseenIds.length === 0) {
+      if (bag.seenIds.length === 0) break;
+      bag.unseenIds = shuffleArray(bag.seenIds);
+      bag.seenIds = [];
+    }
+    const id = bag.unseenIds.shift();
+    bag.seenIds.push(id);
+    result.push(id);
+  }
+  return result;
+}
+
+function computeCategoryQuotas(totalDesired, poolSizes) {
+  const ideal = {};
+  const quota = {};
+  for (const cat of CATEGORIES) {
+    ideal[cat.code] = totalDesired * cat.ratio;
+    quota[cat.code] = Math.floor(ideal[cat.code]);
+  }
+  const assigned = CATEGORIES.reduce((sum, cat) => sum + quota[cat.code], 0);
+  const remainderSeats = totalDesired - assigned;
+  const byFraction = [...CATEGORIES].sort(
+    (a, b) => (ideal[b.code] - quota[b.code]) - (ideal[a.code] - quota[a.code])
+  );
+  for (let i = 0; i < remainderSeats; i++) {
+    quota[byFraction[i % byFraction.length].code]++;
+  }
+  let overflow = 0;
+  for (const cat of CATEGORIES) {
+    if (quota[cat.code] > poolSizes[cat.code]) {
+      overflow += quota[cat.code] - poolSizes[cat.code];
+      quota[cat.code] = poolSizes[cat.code];
+    }
+  }
+  for (let i = 0; i < overflow; i++) {
+    let bestCode = null;
+    let bestSpare = 0;
+    for (const cat of CATEGORIES) {
+      const spare = poolSizes[cat.code] - quota[cat.code];
+      if (spare > bestSpare) {
+        bestSpare = spare;
+        bestCode = cat.code;
+      }
+    }
+    if (!bestCode) break;
+    quota[bestCode]++;
+  }
+  return quota;
+}
+
+function drawQuestionsForExam(desiredCount) {
+  const progress = ensureProgressInitialized(loadQuestionProgress());
+  const poolSizes = {};
+  for (const cat of CATEGORIES) {
+    poolSizes[cat.code] = QUESTIONS.filter((q) => q.category === cat.code).length;
+  }
+  const totalPool = CATEGORIES.reduce((sum, cat) => sum + poolSizes[cat.code], 0);
+  const totalDesired = Math.min(desiredCount, totalPool);
+  const quota = computeCategoryQuotas(totalDesired, poolSizes);
+  let ids = [];
+  for (const cat of CATEGORIES) {
+    ids = ids.concat(drawFromCategoryBag(progress, cat.code, quota[cat.code]));
+  }
+  shuffleArray(ids);
+  saveQuestionProgress(progress);
+  return ids;
+}
+
+function startNewExam(desiredCount) {
+  const questionIds = drawQuestionsForExam(desiredCount);
+  const actualCount = questionIds.length;
+  // 制限時間は本番(100問・120分)の比率に合わせて出題数に応じて比例縮小する
+  const timeLimitMs = Math.max(
+    MIN_EXAM_TIME_LIMIT_MINUTES,
+    Math.round(EXAM_TIME_LIMIT_MINUTES * actualCount / EXAM_QUESTION_COUNT)
+  ) * 60000;
+  examState = {
+    schemaVersion: 1,
+    startTime: Date.now(),
+    timeLimitMs,
+    questionIds,
+    answers: Object.fromEntries(questionIds.map((id) => [id, null])),
+    currentIndex: 0
+  };
+  saveExamState(examState);
+  enterExamView();
+}
+
+function resumeExam() {
+  examState = loadExamState();
+  enterExamView();
+}
+
+function enterExamView() {
+  showView("exam");
+  startTimerLoop();
+  renderExamView();
+}
+
+function leaveExamView() {
+  stopTimerLoop();
+}
+
+function selectAnswer(questionId, choiceIndex) {
+  examState.answers[questionId] = choiceIndex;
+  saveExamState(examState);
+  renderExamView();
+}
+
+function goToQuestion(index) {
+  examState.currentIndex = index;
+  saveExamState(examState);
+  renderExamView();
+}
+
+function submitExam(auto) {
+  leaveExamView();
+  const breakdown = gradeExam(examState);
+  const historyEntry = {
+    schemaVersion: 1,
+    id: generateHistoryId(),
+    date: new Date().toISOString(),
+    questionIds: examState.questionIds,
+    answers: examState.answers,
+    totalQuestions: breakdown.totalQuestions,
+    correctCount: breakdown.correctCount,
+    percentageScore: breakdown.percentageScore,
+    categoryBreakdown: breakdown.categoryBreakdown,
+    overallScoreApprox: breakdown.overallScoreApprox,
+    autoSubmitted: !!auto
+  };
+  const history = loadHistory();
+  history.push(historyEntry);
+  saveHistory(history);
+  clearExamState();
+  examState = null;
+  renderResultsView(historyEntry, !!auto);
+}
+
+function computeRemainingMs(state) {
+  return state.startTime + state.timeLimitMs - Date.now();
+}
+
+function isExamExpired(state) {
+  return computeRemainingMs(state) <= 0;
+}
+
+function startTimerLoop() {
+  stopTimerLoop();
+  timerIntervalId = setInterval(tick, TIMER_TICK_MS);
+  tick();
+}
+
+function stopTimerLoop() {
+  if (timerIntervalId !== null) {
+    clearInterval(timerIntervalId);
+    timerIntervalId = null;
+  }
+}
+
+function tick() {
+  // setIntervalの間隔そのものはバックグラウンドタブで遅れることがあるが、
+  // 毎回startTimeからの経過時間を計算し直すため残り時間はズレない
+  const remaining = computeRemainingMs(examState);
+  if (remaining <= 0) {
+    renderTimer(0);
+    submitExam(true);
+    return;
+  }
+  renderTimer(remaining);
+}
+
+function renderTimer(remainingMs) {
+  examTimerEl.textContent = formatDuration(remainingMs);
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+}
+
+function gradeExam(state) {
+  const categoryBreakdown = {};
+  let correctCount = 0;
+  let totalQuestions = 0;
+  for (const cat of CATEGORIES) {
+    const idsInCategory = state.questionIds.filter((id) => QUESTIONS_BY_ID.get(id).category === cat.code);
+    const total = idsInCategory.length;
+    const correct = idsInCategory.filter(
+      (id) => state.answers[id] === QUESTIONS_BY_ID.get(id).answerIndex
+    ).length;
+    const percentage = total > 0 ? (correct / total) * 100 : 0;
+    const scoreApprox = total > 0 ? Math.round((correct / total) * SCORE_SCALE_MAX) : 0;
+    categoryBreakdown[cat.code] = { total, correct, percentage, scoreApprox };
+    correctCount += correct;
+    totalQuestions += total;
+  }
+  const percentageScore = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+  const presentCategories = CATEGORIES.filter((cat) => categoryBreakdown[cat.code].total > 0);
+  const weightSum = presentCategories.reduce((sum, cat) => sum + cat.ratio, 0);
+  const overallScoreApprox = weightSum > 0
+    ? Math.round(
+        presentCategories.reduce((sum, cat) => sum + categoryBreakdown[cat.code].scoreApprox * cat.ratio, 0) / weightSum
+      )
+    : 0;
+  return { categoryBreakdown, correctCount, totalQuestions, percentageScore, overallScoreApprox };
+}
+
+function generateHistoryId() {
+  return Date.now();
+}
+
+function showView(viewName) {
+  document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
+  document.getElementById("view-" + viewName).classList.add("active");
+}
+
+function renderStartView() {
+  const savedState = loadExamState();
+  if (savedState) {
+    if (isExamExpired(savedState)) {
+      examState = savedState;
+      submitExam(true);
+      return;
+    }
+    resumeBannerEl.hidden = false;
+  } else {
+    resumeBannerEl.hidden = true;
+  }
+  showView("start");
+}
+
+function renderExamView() {
+  renderQuestionCard();
+  renderJumpGrid();
+  updateSubmitButtonState();
+}
+
+function renderQuestionCard() {
+  const id = examState.questionIds[examState.currentIndex];
+  const question = QUESTIONS_BY_ID.get(id);
+  const category = CATEGORY_BY_CODE.get(question.category);
+  examCategoryTagEl.textContent = category.label;
+  examProgressEl.textContent = "問 " + (examState.currentIndex + 1) + " / " + examState.questionIds.length;
+  examTimerEl.textContent = formatDuration(computeRemainingMs(examState));
+  examQuestionTextEl.textContent = question.text;
+  examQuestionImagesEl.innerHTML = "";
+  question.images.forEach((src) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.className = "question-image";
+    img.alt = question.text;
+    examQuestionImagesEl.appendChild(img);
+  });
+  examChoicesEl.innerHTML = "";
+  question.choices.forEach((choiceText, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-btn" + (examState.answers[id] === index ? " selected" : "");
+    button.textContent = choiceText;
+    button.addEventListener("click", () => selectAnswer(id, index));
+    examChoicesEl.appendChild(button);
+  });
+  prevQuestionBtn.disabled = examState.currentIndex === 0;
+  nextQuestionBtn.disabled = examState.currentIndex === examState.questionIds.length - 1;
+}
+
+function renderJumpGrid() {
+  examJumpGridEl.innerHTML = "";
+  examState.questionIds.forEach((id, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const answered = examState.answers[id] !== null;
+    button.className = "jump-btn"
+      + (answered ? " answered" : "")
+      + (index === examState.currentIndex ? " current" : "");
+    button.textContent = String(index + 1);
+    button.addEventListener("click", () => goToQuestion(index));
+    examJumpGridEl.appendChild(button);
+  });
+}
+
+function updateSubmitButtonState() {
+  const allAnswered = Object.values(examState.answers).every((a) => a !== null);
+  submitExamBtn.disabled = !allAnswered;
+}
+
+function buildCategoryTableHtml(categoryBreakdown) {
+  let html = "<tr><th>分野</th><th>正答数</th><th>正答率</th><th>推定スコア</th></tr>";
+  CATEGORIES.forEach((cat) => {
+    const data = categoryBreakdown[cat.code];
+    html += "<tr><td>" + cat.label + "</td><td>" + data.correct + " / " + data.total + "</td><td>"
+      + data.percentage.toFixed(1) + "%</td><td>" + data.scoreApprox + "</td></tr>";
+  });
+  return html;
+}
+
+function renderResultsView(historyEntry, auto) {
+  resultsAutoBannerEl.hidden = !auto;
+  resultsOverallEl.textContent = "総合: " + historyEntry.correctCount + " / " + historyEntry.totalQuestions
+    + "問正解 (" + historyEntry.percentageScore.toFixed(1) + "%) 推定スコア " + historyEntry.overallScoreApprox + "点";
+  resultsCategoryTableEl.innerHTML = buildCategoryTableHtml(historyEntry.categoryBreakdown);
+  resultsDisclaimerEl.textContent = SCORE_DISCLAIMER_TEXT;
+  resultsReviewEl.innerHTML = "";
+  historyEntry.questionIds.forEach((id) => {
+    const question = QUESTIONS_BY_ID.get(id);
+    if (!question) return;
+    const userAnswerIndex = historyEntry.answers[id];
+    const category = CATEGORY_BY_CODE.get(question.category);
+
+    const card = document.createElement("div");
+    card.className = "review-card";
+
+    const title = document.createElement("p");
+    title.className = "review-question-text";
+    title.textContent = "[" + category.label + "] " + question.text;
+    card.appendChild(title);
+
+    question.images.forEach((src) => {
+      const img = document.createElement("img");
+      img.src = src;
+      img.className = "question-image";
+      img.alt = question.text;
+      card.appendChild(img);
+    });
+
+    const choiceList = document.createElement("ul");
+    choiceList.className = "review-choices";
+    question.choices.forEach((choiceText, index) => {
+      const item = document.createElement("li");
+      let label = choiceText;
+      if (index === question.answerIndex) {
+        label = "✔正解 " + label;
+      }
+      if (index === userAnswerIndex && userAnswerIndex !== question.answerIndex) {
+        label = "✖あなたの回答 " + label;
+      }
+      item.textContent = label;
+      item.className = index === question.answerIndex
+        ? "correct-choice"
+        : (index === userAnswerIndex ? "wrong-choice" : "");
+      choiceList.appendChild(item);
+    });
+    card.appendChild(choiceList);
+
+    const explanation = document.createElement("p");
+    explanation.className = "review-explanation";
+    explanation.textContent = question.explanation;
+    card.appendChild(explanation);
+
+    resultsReviewEl.appendChild(card);
+  });
+  showView("results");
+}
+
+function createSvgElement(tagName, attributes) {
+  const el = document.createElementNS(SVG_NS, tagName);
+  for (const [name, value] of Object.entries(attributes)) {
+    el.setAttribute(name, value);
+  }
+  return el;
+}
+
+// 直近の受験の総合正答率を折れ線グラフで描く。合格目安(60%)の線も引く
+function renderHistoryChart(history) {
+  historyChartEl.innerHTML = "";
+  if (history.length === 0) {
+    historyChartEl.textContent = "まだ受験履歴がありません。試験を受けるとここに成績の推移グラフが表示されます。";
+    return;
+  }
+  const entries = history.slice(-HISTORY_CHART_MAX_POINTS);
+  const width = 600;
+  const height = 240;
+  const pad = { top: 16, right: 16, bottom: 32, left: 44 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const xOf = (i) => pad.left + (entries.length === 1 ? plotW / 2 : (plotW * i) / (entries.length - 1));
+  const yOf = (pct) => pad.top + plotH * (1 - pct / 100);
+
+  const svg = createSvgElement("svg", {
+    viewBox: "0 0 " + width + " " + height,
+    class: "history-chart-svg",
+    role: "img",
+    "aria-label": "総合正答率の推移グラフ(直近" + entries.length + "回)"
+  });
+
+  [0, 20, 40, 60, 80, 100].forEach((pct) => {
+    svg.appendChild(createSvgElement("line", {
+      x1: pad.left, x2: width - pad.right, y1: yOf(pct), y2: yOf(pct), class: "chart-grid"
+    }));
+    const label = createSvgElement("text", {
+      x: pad.left - 8, y: yOf(pct) + 4, "text-anchor": "end", class: "chart-axis-label"
+    });
+    label.textContent = pct + "%";
+    svg.appendChild(label);
+  });
+
+  svg.appendChild(createSvgElement("line", {
+    x1: pad.left, x2: width - pad.right,
+    y1: yOf(PASSING_PERCENTAGE), y2: yOf(PASSING_PERCENTAGE), class: "chart-pass-line"
+  }));
+  const passLabel = createSvgElement("text", {
+    x: width - pad.right, y: yOf(PASSING_PERCENTAGE) - 6, "text-anchor": "end", class: "chart-pass-label"
+  });
+  passLabel.textContent = "合格目安 " + PASSING_PERCENTAGE + "%";
+  svg.appendChild(passLabel);
+
+  const points = entries.map((entry, i) => xOf(i) + "," + yOf(entry.percentageScore)).join(" ");
+  svg.appendChild(createSvgElement("polyline", { points, class: "chart-line" }));
+
+  entries.forEach((entry, i) => {
+    const dot = createSvgElement("circle", {
+      cx: xOf(i), cy: yOf(entry.percentageScore), r: 5,
+      class: entry.percentageScore >= PASSING_PERCENTAGE ? "chart-dot pass" : "chart-dot"
+    });
+    const tooltip = createSvgElement("title", {});
+    tooltip.textContent = new Date(entry.date).toLocaleString("ja-JP") + " / " + entry.percentageScore.toFixed(1) + "%";
+    dot.appendChild(tooltip);
+    svg.appendChild(dot);
+    const xLabel = createSvgElement("text", {
+      x: xOf(i), y: height - 10, "text-anchor": "middle", class: "chart-axis-label"
+    });
+    xLabel.textContent = String(history.length - entries.length + i + 1);
+    svg.appendChild(xLabel);
+  });
+
+  historyChartEl.appendChild(svg);
+  const caption = document.createElement("p");
+  caption.className = "history-chart-caption";
+  caption.textContent = "横軸: 受験回数 / 縦軸: 総合正答率(直近" + entries.length + "回)";
+  historyChartEl.appendChild(caption);
+}
+
+function renderHistoryView() {
+  const history = loadHistory();
+  renderHistoryChart(history);
+  let html = "<tr><th>日時</th><th>総合正答率</th><th>推定スコア</th><th>ストラテジ系</th><th>マネジメント系</th><th>テクノロジ系</th><th>操作</th></tr>";
+  history.slice().reverse().forEach((entry, i) => {
+    const dateLabel = new Date(entry.date).toLocaleString("ja-JP");
+    html += "<tr><td>" + dateLabel + "</td><td>" + entry.percentageScore.toFixed(1) + "%</td><td>"
+      + entry.overallScoreApprox + "</td>";
+    CATEGORIES.forEach((cat) => {
+      const data = entry.categoryBreakdown[cat.code];
+      html += "<td>" + data.correct + "/" + data.total + "</td>";
+    });
+    // 表は新しい順に並べているので、保存データ上の位置に戻して持たせる
+    const originalIndex = history.length - 1 - i;
+    html += "<td><button type=\"button\" class=\"danger-btn history-delete-btn\" data-index=\""
+      + originalIndex + "\">削除</button></td>";
+    html += "</tr>";
+  });
+  historyTableEl.innerHTML = html;
+  historyClearBtn.hidden = history.length === 0;
+  showView("history");
+}
+
+function deleteHistoryEntry(index) {
+  if (!confirm("この履歴を削除しますか？")) return;
+  const history = loadHistory();
+  history.splice(index, 1);
+  saveHistory(history);
+  renderHistoryView();
+}
+
+function clearHistory() {
+  if (!confirm("受験履歴をすべて削除しますか？この操作は元に戻せません。")) return;
+  saveHistory([]);
+  renderHistoryView();
+}
+
+function init() {
+  startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
+  startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
+  resumeExamBtn.addEventListener("click", resumeExam);
+  showHistoryBtn.addEventListener("click", renderHistoryView);
+  historyBackBtn.addEventListener("click", renderStartView);
+  historyClearBtn.addEventListener("click", clearHistory);
+  historyTableEl.addEventListener("click", (event) => {
+    const btn = event.target.closest(".history-delete-btn");
+    if (btn) deleteHistoryEntry(Number(btn.dataset.index));
+  });
+  resultsBackBtn.addEventListener("click", renderStartView);
+  resultsBackBottomBtn.addEventListener("click", renderStartView);
+  prevQuestionBtn.addEventListener("click", () => goToQuestion(Math.max(0, examState.currentIndex - 1)));
+  nextQuestionBtn.addEventListener("click", () => {
+    goToQuestion(Math.min(examState.questionIds.length - 1, examState.currentIndex + 1));
+  });
+  submitExamBtn.addEventListener("click", () => submitExam(false));
+  renderStartView();
+}
+
+init();

@@ -1,0 +1,13 @@
+{
+  "name": "ITパスポート模擬試験",
+  "short_name": "ITパス模試",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f4f8",
+  "theme_color": "#4a6cf7",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

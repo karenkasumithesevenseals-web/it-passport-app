@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITパスポート模擬試験</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4a6cf7">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ITパス模試">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+</head>
+<body>
+  <main class="app">
+    <h1>ITパスポート模擬試験</h1>
+
+    <section class="view active" id="view-start">
+      <p>本番同様、100問・制限時間付きの模擬試験に挑戦できます。時間がないときは「お試し10問」で分野バランスを保ったまま短時間の確認もできます。</p>
+      <div id="resume-banner" class="resume-banner" hidden>
+        <p>前回の試験が途中で終了しています。続きから再開できます。</p>
+        <button type="button" id="resume-exam-btn">前回の試験を再開する</button>
+      </div>
+      <div class="start-actions">
+        <button type="button" id="start-exam-btn">新しい試験を開始</button>
+        <button type="button" id="start-quick-exam-btn">お試し10問</button>
+        <button type="button" id="show-history-btn">履歴を見る</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-exam">
+      <div class="exam-header">
+        <span id="exam-category-tag" class="category-tag"></span>
+        <span id="exam-progress"></span>
+        <span id="exam-timer" class="exam-timer"></span>
+      </div>
+      <p id="exam-question-text" class="question-text"></p>
+      <div id="exam-question-images" class="question-images"></div>
+      <div id="exam-choices" class="choices"></div>
+      <div id="exam-jump-grid" class="jump-grid"></div>
+      <div class="exam-nav">
+        <button type="button" id="prev-question-btn">前へ</button>
+        <button type="button" id="next-question-btn">次へ</button>
+        <button type="button" id="submit-exam-btn" disabled>採点する</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-results">
+      <p id="results-auto-banner" class="auto-banner" hidden>制限時間になったため自動的に採点されました。</p>
+      <h2>結果</h2>
+      <p id="results-overall"></p>
+      <div class="table-scroll"><table id="results-category-table" class="score-table"></table></div>
+      <p class="score-disclaimer" id="results-disclaimer"></p>
+      <div class="results-actions">
+        <button type="button" id="results-back-btn">開始画面に戻る</button>
+      </div>
+      <h3>問題の復習</h3>
+      <div id="results-review"></div>
+      <div class="results-actions">
+        <button type="button" id="results-back-bottom-btn">開始画面に戻る</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-history">
+      <h2>受験履歴</h2>
+      <div id="history-chart" class="history-chart"></div>
+      <div class="table-scroll"><table id="history-table" class="score-table"></table></div>
+      <div class="history-actions">
+        <button type="button" id="history-back-btn">開始画面に戻る</button>
+        <button type="button" id="history-clear-btn" class="danger-btn">履歴をすべて削除</button>
+      </div>
+    </section>
+    <footer>
+      <p class="score-disclaimer">出典：独立行政法人 情報処理推進機構（IPA） ITパスポート試験 公開問題</p>
+    </footer>
+  </main>
+  <script src="data/questions-base.js"></script>
+  <script src="data/questions-sample.js"></script>
+  <script src="data/questions-r06.js"></script>
+  <script src="data/questions-r06-technology.js"></script>
+  <script src="data/questions-r06-technology-2.js"></script>
+  <script src="data/questions-r05.js"></script>
+  <script src="script.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((err) => {
+          console.warn("Service worker registration failed:", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

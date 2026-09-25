@@ -22,6 +22,7 @@ const PASSING_TOTAL_SCORE = 600;
 const PASSING_CATEGORY_SCORE = 300;
 const EXAM_MODE_NORMAL = "normal";
 const EXAM_MODE_REVIEW = "review";
+const EXAM_MODE_PRACTICE = "practice";
 const HISTORY_CHART_MAX_POINTS = 20;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TIMER_TICK_MS = 1000;
@@ -33,6 +34,16 @@ const startQuickExamBtn = document.getElementById("start-quick-exam-btn");
 const resumeExamBtn = document.getElementById("resume-exam-btn");
 const showHistoryBtn = document.getElementById("show-history-btn");
 const startReviewBtn = document.getElementById("start-review-btn");
+
+const practiceCategoryTagEl = document.getElementById("practice-category-tag");
+const practiceScoreEl = document.getElementById("practice-score");
+const practiceQuestionTextEl = document.getElementById("practice-question-text");
+const practiceQuestionImagesEl = document.getElementById("practice-question-images");
+const practiceChoicesEl = document.getElementById("practice-choices");
+const practiceFeedbackEl = document.getElementById("practice-feedback");
+const practiceExplanationEl = document.getElementById("practice-explanation");
+const practiceEndBtn = document.getElementById("practice-end-btn");
+const practiceNextBtn = document.getElementById("practice-next-btn");
 
 const examCategoryTagEl = document.getElementById("exam-category-tag");
 const examProgressEl = document.getElementById("exam-progress");
@@ -65,6 +76,7 @@ const historyImportInput = document.getElementById("history-import-input");
 const historyTransferMessageEl = document.getElementById("history-transfer-message");
 
 let examState = null;
+let practiceState = null;
 let timerIntervalId = null;
 
 function loadQuestionProgress() {
@@ -226,6 +238,11 @@ function drawQuestionsForExam(desiredCount) {
 
 function isReviewEntry(entry) {
   return entry.mode === EXAM_MODE_REVIEW;
+}
+
+// 本番形式の模試かどうか(mode がない古い履歴も模試として扱う)
+function isMockExamEntry(entry) {
+  return !entry.mode || entry.mode === EXAM_MODE_NORMAL;
 }
 
 // 履歴(模試と復習の両方)を古い順にたどり、各問題の「最後に解いたときの回答」が
@@ -665,10 +682,10 @@ function renderHistoryChart(history) {
 
 function renderHistoryView() {
   const history = loadHistory();
-  // 復習の回は苦手な問題ばかりで成績の推移が乱れるので、グラフと表には模試だけを出す
+  // 復習や一問一答の回は出題が偏っていて成績の推移が乱れるので、グラフと表には模試だけを出す
   const examRows = history
     .map((entry, index) => ({ entry, index }))
-    .filter((row) => !isReviewEntry(row.entry));
+    .filter((row) => isMockExamEntry(row.entry));
   renderHistoryChart(examRows.map((row) => row.entry));
   let html = "<tr><th>日時</th><th>総合正答率</th><th>推定スコア</th><th>判定</th><th>ストラテジ系</th><th>マネジメント系</th><th>テクノロジ系</th><th>操作</th></tr>";
   examRows.slice().reverse().forEach(({ entry, index }) => {
@@ -703,6 +720,118 @@ function clearHistory() {
   if (!confirm("受験履歴をすべて削除しますか？この操作は元に戻せません。")) return;
   saveHistory([]);
   renderHistoryView();
+}
+
+// 分野別の一問一答。時間制限はなく、答えるたびに正誤と解説を見せる。
+// 回答は mode: "practice" の履歴として1回分ずつ保存するので、間違えた問題は復習の対象にもなる
+function startPractice(categoryCode) {
+  practiceState = {
+    historyId: generateHistoryId(),
+    date: new Date().toISOString(),
+    category: categoryCode,
+    questionIds: [],
+    answers: {},
+    currentId: null,
+    answered: false
+  };
+  showView("practice");
+  showNextPracticeQuestion();
+}
+
+function showNextPracticeQuestion() {
+  const progress = ensureProgressInitialized(loadQuestionProgress());
+  const [id] = drawFromCategoryBag(progress, practiceState.category, 1);
+  saveQuestionProgress(progress);
+  practiceState.currentId = id;
+  practiceState.answered = false;
+  renderPracticeView();
+}
+
+function answerPractice(choiceIndex) {
+  if (practiceState.answered) return;
+  const id = practiceState.currentId;
+  // 同じ問題が2回出た場合は、あとの回答で上書きする
+  if (!practiceState.questionIds.includes(id)) practiceState.questionIds.push(id);
+  practiceState.answers[id] = choiceIndex;
+  practiceState.answered = true;
+  savePracticeToHistory();
+  renderPracticeView();
+}
+
+function savePracticeToHistory() {
+  const breakdown = gradeExam(practiceState);
+  const historyEntry = {
+    schemaVersion: 1,
+    id: practiceState.historyId,
+    date: practiceState.date,
+    mode: EXAM_MODE_PRACTICE,
+    questionIds: practiceState.questionIds,
+    answers: practiceState.answers,
+    totalQuestions: breakdown.totalQuestions,
+    correctCount: breakdown.correctCount,
+    percentageScore: breakdown.percentageScore,
+    categoryBreakdown: breakdown.categoryBreakdown,
+    overallScoreApprox: breakdown.overallScoreApprox,
+    autoSubmitted: false
+  };
+  const history = loadHistory();
+  const index = history.findIndex((entry) => entry.id === practiceState.historyId);
+  if (index >= 0) {
+    history[index] = historyEntry;
+  } else {
+    history.push(historyEntry);
+  }
+  saveHistory(history);
+}
+
+function renderPracticeView() {
+  const id = practiceState.currentId;
+  const question = QUESTIONS_BY_ID.get(id);
+  const answered = practiceState.answered;
+  const userAnswerIndex = practiceState.answers[id];
+  const answeredCount = practiceState.questionIds.length;
+  const correctCount = practiceState.questionIds.filter(
+    (qid) => practiceState.answers[qid] === QUESTIONS_BY_ID.get(qid).answerIndex
+  ).length;
+  practiceCategoryTagEl.textContent = CATEGORY_BY_CODE.get(practiceState.category).label;
+  practiceScoreEl.textContent = "正解 " + correctCount + " / " + answeredCount + "問";
+  practiceQuestionTextEl.textContent = question.text;
+  practiceQuestionImagesEl.innerHTML = "";
+  question.images.forEach((src) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.className = "question-image";
+    img.alt = question.text;
+    practiceQuestionImagesEl.appendChild(img);
+  });
+  practiceChoicesEl.innerHTML = "";
+  question.choices.forEach((choiceText, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    let className = "choice-btn";
+    if (answered && index === question.answerIndex) className += " correct";
+    if (answered && index === userAnswerIndex && index !== question.answerIndex) className += " wrong";
+    button.className = className;
+    button.textContent = choiceText;
+    button.disabled = answered;
+    button.addEventListener("click", () => answerPractice(index));
+    practiceChoicesEl.appendChild(button);
+  });
+  practiceFeedbackEl.hidden = !answered;
+  practiceExplanationEl.hidden = !answered;
+  practiceNextBtn.hidden = !answered;
+  if (answered) {
+    const correct = userAnswerIndex === question.answerIndex;
+    practiceFeedbackEl.className = "pass-banner " + (correct ? "passed" : "failed");
+    practiceFeedbackEl.textContent = correct ? "⭕ 正解！" : "❌ 不正解（正解は緑の選択肢です）";
+    practiceExplanationEl.textContent = question.explanation;
+  }
+  window.scrollTo(0, 0);
+}
+
+function endPractice() {
+  practiceState = null;
+  renderStartView();
 }
 
 function showTransferMessage(text, isError) {
@@ -826,6 +955,11 @@ function init() {
   startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
   startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
   startReviewBtn.addEventListener("click", startReviewExam);
+  document.querySelectorAll(".start-practice-btn").forEach((btn) => {
+    btn.addEventListener("click", () => startPractice(btn.dataset.category));
+  });
+  practiceNextBtn.addEventListener("click", showNextPracticeQuestion);
+  practiceEndBtn.addEventListener("click", endPractice);
   resumeExamBtn.addEventListener("click", resumeExam);
   showHistoryBtn.addEventListener("click", () => {
     hideTransferMessage();

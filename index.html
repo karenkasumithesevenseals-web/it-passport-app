@@ -30,6 +30,29 @@
         <button type="button" id="start-review-btn" disabled>間違えた問題を復習</button>
         <button type="button" id="show-history-btn">履歴を見る</button>
       </div>
+      <h3>分野別の一問一答</h3>
+      <p class="practice-note">時間制限なし。1問ずつ答えると、すぐに正解と解説が表示されます。</p>
+      <div class="start-actions">
+        <button type="button" class="start-practice-btn" data-category="strategy">ストラテジ系</button>
+        <button type="button" class="start-practice-btn" data-category="management">マネジメント系</button>
+        <button type="button" class="start-practice-btn" data-category="technology">テクノロジ系</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-practice">
+      <div class="exam-header">
+        <span id="practice-category-tag" class="category-tag"></span>
+        <span id="practice-score"></span>
+      </div>
+      <p id="practice-question-text" class="question-text"></p>
+      <div id="practice-question-images" class="question-images"></div>
+      <div id="practice-choices" class="choices"></div>
+      <p id="practice-feedback" class="pass-banner" hidden></p>
+      <p id="practice-explanation" class="review-explanation" hidden></p>
+      <div class="exam-nav">
+        <button type="button" id="practice-end-btn">終了して戻る</button>
+        <button type="button" id="practice-next-btn" hidden>次の問題</button>
+      </div>
     </section>
 
     <section class="view" id="view-exam">

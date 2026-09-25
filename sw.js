@@ -1,4 +1,4 @@
-const CACHE_NAME = "it-passport-cache-v8";
+const CACHE_NAME = "it-passport-cache-v9";
 const CACHE_ASSETS = [
   "./",
   "./index.html",

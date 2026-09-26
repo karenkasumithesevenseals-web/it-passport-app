@@ -491,3 +491,107 @@ button:disabled {
   color: #555;
   font-size: 0.9rem;
 }
+
+.glossary-tabs,
+.glossary-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.glossary-tab-btn,
+.glossary-filter-btn {
+  background: #fff;
+  color: #4a6cf7;
+  border: 1px solid #4a6cf7;
+}
+
+.glossary-filter-btn {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
+
+.glossary-tab-btn.active,
+.glossary-filter-btn.active {
+  background: #4a6cf7;
+  color: #fff;
+}
+
+.glossary-search {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.glossary-count {
+  margin: 0 0 8px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.glossary-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.glossary-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.glossary-title {
+  font-weight: bold;
+}
+
+.glossary-item .category-tag {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.glossary-item p {
+  margin: 0;
+  padding: 0 12px 12px;
+}
+
+.glossary-formula {
+  white-space: pre-line;
+  font-weight: bold;
+  color: #1d3a8a;
+}
+
+.glossary-text {
+  color: #444;
+}
+
+.glossary-example {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.glossary-empty {
+  color: #666;
+}
+
+.glossary-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.glossary-title::before {
+  content: "▶ ";
+  font-size: 0.75rem;
+  color: #4a6cf7;
+}
+
+.glossary-item[open] .glossary-title::before {
+  content: "▼ ";
+}

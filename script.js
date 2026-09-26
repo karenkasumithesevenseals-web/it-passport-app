@@ -75,8 +75,16 @@ const historyImportBtn = document.getElementById("history-import-btn");
 const historyImportInput = document.getElementById("history-import-input");
 const historyTransferMessageEl = document.getElementById("history-transfer-message");
 
+const showGlossaryBtn = document.getElementById("show-glossary-btn");
+const glossarySearchEl = document.getElementById("glossary-search");
+const glossaryCountEl = document.getElementById("glossary-count");
+const glossaryListEl = document.getElementById("glossary-list");
+const glossaryBackBtn = document.getElementById("glossary-back-btn");
+
 let examState = null;
 let practiceState = null;
+// 用語・計算式まとめ画面の表示条件（タブ・分野・検索語）
+const glossaryFilter = { tab: "terms", category: "all", keyword: "" };
 let timerIntervalId = null;
 
 function loadQuestionProgress() {
@@ -951,6 +959,62 @@ async function handleImportFileSelected() {
   }
 }
 
+function createTextElement(tagName, className, text) {
+  const el = document.createElement(tagName);
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
+function buildGlossaryItem(item, isFormula) {
+  const details = document.createElement("details");
+  details.className = "glossary-item";
+  const summary = document.createElement("summary");
+  const title = isFormula ? item.title : item.term + (item.reading ? "（" + item.reading + "）" : "");
+  summary.appendChild(createTextElement("span", "glossary-title", title));
+  summary.appendChild(createTextElement("span", "category-tag", CATEGORY_BY_CODE.get(item.category).label));
+  details.appendChild(summary);
+  if (isFormula) {
+    details.appendChild(createTextElement("p", "glossary-formula", item.formula));
+    details.appendChild(createTextElement("p", "glossary-text", item.note));
+    details.appendChild(createTextElement("p", "glossary-example", "例：" + item.example));
+  } else {
+    details.appendChild(createTextElement("p", "glossary-text", item.description));
+  }
+  return details;
+}
+
+function renderGlossaryList() {
+  const isFormula = glossaryFilter.tab === "formulas";
+  const keyword = glossaryFilter.keyword.trim().toLowerCase();
+  const items = (isFormula ? FORMULAS : GLOSSARY).filter((item) => {
+    if (glossaryFilter.category !== "all" && item.category !== glossaryFilter.category) return false;
+    if (!keyword) return true;
+    const searchText = isFormula
+      ? [item.title, item.formula, item.note, item.example]
+      : [item.term, item.reading, item.description];
+    return searchText.join(" ").toLowerCase().includes(keyword);
+  });
+  document.querySelectorAll(".glossary-tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === glossaryFilter.tab);
+  });
+  document.querySelectorAll(".glossary-filter-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.category === glossaryFilter.category);
+  });
+  glossaryCountEl.textContent = items.length + "件";
+  glossaryListEl.innerHTML = "";
+  items.forEach((item) => glossaryListEl.appendChild(buildGlossaryItem(item, isFormula)));
+  if (items.length === 0) {
+    glossaryListEl.appendChild(createTextElement("p", "glossary-empty", "見つかりませんでした。別のキーワードで探してみてください。"));
+  }
+}
+
+function renderGlossaryView() {
+  renderGlossaryList();
+  showView("glossary");
+  window.scrollTo(0, 0);
+}
+
 function init() {
   startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
   startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
@@ -973,6 +1037,24 @@ function init() {
   historyTableEl.addEventListener("click", (event) => {
     const btn = event.target.closest(".history-delete-btn");
     if (btn) deleteHistoryEntry(Number(btn.dataset.index));
+  });
+  showGlossaryBtn.addEventListener("click", renderGlossaryView);
+  glossaryBackBtn.addEventListener("click", renderStartView);
+  glossarySearchEl.addEventListener("input", () => {
+    glossaryFilter.keyword = glossarySearchEl.value;
+    renderGlossaryList();
+  });
+  document.querySelectorAll(".glossary-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      glossaryFilter.tab = btn.dataset.tab;
+      renderGlossaryList();
+    });
+  });
+  document.querySelectorAll(".glossary-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      glossaryFilter.category = btn.dataset.category;
+      renderGlossaryList();
+    });
   });
   resultsBackBtn.addEventListener("click", renderStartView);
   resultsBackBottomBtn.addEventListener("click", renderStartView);

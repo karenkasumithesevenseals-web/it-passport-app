@@ -29,6 +29,7 @@
         <button type="button" id="start-quick-exam-btn">お試し10問</button>
         <button type="button" id="start-review-btn" disabled>間違えた問題を復習</button>
         <button type="button" id="show-history-btn">履歴を見る</button>
+        <button type="button" id="show-glossary-btn">用語・計算式まとめ</button>
       </div>
       <h3>分野別の一問一答</h3>
       <p class="practice-note">時間制限なし。1問ずつ答えると、すぐに正解と解説が表示されます。</p>
@@ -108,6 +109,26 @@
         <p id="history-transfer-message" class="history-transfer-message" hidden></p>
       </div>
     </section>
+    <section class="view" id="view-glossary">
+      <h2>用語・計算式まとめ</h2>
+      <div class="glossary-tabs">
+        <button type="button" class="glossary-tab-btn" data-tab="terms">用語</button>
+        <button type="button" class="glossary-tab-btn" data-tab="formulas">計算式</button>
+      </div>
+      <input type="search" id="glossary-search" class="glossary-search" placeholder="キーワードで探す（例：稼働率、KPI）">
+      <div class="glossary-filters">
+        <button type="button" class="glossary-filter-btn" data-category="all">すべて</button>
+        <button type="button" class="glossary-filter-btn" data-category="strategy">ストラテジ系</button>
+        <button type="button" class="glossary-filter-btn" data-category="management">マネジメント系</button>
+        <button type="button" class="glossary-filter-btn" data-category="technology">テクノロジ系</button>
+      </div>
+      <p id="glossary-count" class="glossary-count"></p>
+      <div id="glossary-list" class="glossary-list"></div>
+      <p class="score-disclaimer">用語・計算式の説明はこのアプリ独自のまとめです（IPA の公式な文章ではありません）。</p>
+      <div class="history-actions">
+        <button type="button" id="glossary-back-btn">開始画面に戻る</button>
+      </div>
+    </section>
     <footer>
       <p class="score-disclaimer">出典：独立行政法人 情報処理推進機構（IPA） ITパスポート試験 公開問題</p>
     </footer>
@@ -118,6 +139,7 @@
   <script src="data/questions-r06-technology.js"></script>
   <script src="data/questions-r06-technology-2.js"></script>
   <script src="data/questions-r05.js"></script>
+  <script src="data/glossary.js"></script>
   <script src="script.js"></script>
   <script>
     if ("serviceWorker" in navigator) {

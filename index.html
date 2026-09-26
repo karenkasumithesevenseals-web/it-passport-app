@@ -29,6 +29,7 @@
         <button type="button" id="start-quick-exam-btn">お試し10問</button>
         <button type="button" id="start-review-btn" disabled>間違えた問題を復習</button>
         <button type="button" id="show-history-btn">履歴を見る</button>
+        <button type="button" id="show-analysis-btn">苦手分析</button>
         <button type="button" id="show-glossary-btn">用語・計算式まとめ</button>
       </div>
       <h3>分野別の一問一答</h3>
@@ -107,6 +108,14 @@
           <input type="file" id="history-import-input" hidden>
         </div>
         <p id="history-transfer-message" class="history-transfer-message" hidden></p>
+      </div>
+    </section>
+    <section class="view" id="view-analysis">
+      <h2>苦手分析</h2>
+      <div id="analysis-content"></div>
+      <div class="history-actions analysis-actions">
+        <button type="button" id="analysis-practice-btn" hidden></button>
+        <button type="button" id="analysis-back-btn">開始画面に戻る</button>
       </div>
     </section>
     <section class="view" id="view-glossary">

@@ -595,3 +595,68 @@ button:disabled {
 .glossary-item[open] .glossary-title::before {
   content: "▼ ";
 }
+
+.analysis-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.analysis-card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.analysis-big {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #1d3a8a;
+}
+
+.analysis-note {
+  margin: 4px 0 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.analysis-row {
+  margin-bottom: 12px;
+}
+
+.analysis-row-label {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.analysis-row-status {
+  font-weight: normal;
+}
+
+.analysis-bar {
+  height: 14px;
+  background: #eef2ff;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.analysis-bar-fill {
+  height: 100%;
+  background: #4a6cf7;
+}
+
+.analysis-bar-fill.weak {
+  background: #e5484d;
+}
+
+.analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

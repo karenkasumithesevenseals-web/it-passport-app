@@ -24,6 +24,8 @@ const EXAM_MODE_NORMAL = "normal";
 const EXAM_MODE_REVIEW = "review";
 const EXAM_MODE_PRACTICE = "practice";
 const HISTORY_CHART_MAX_POINTS = 20;
+// 苦手分析の「合格の見込み」で合わせる、直近の模試の回数
+const ANALYSIS_RECENT_EXAM_COUNT = 3;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TIMER_TICK_MS = 1000;
 const SCORE_DISCLAIMER_TEXT = "この1000点満点スコアは正答率に基づく独自の簡易換算であり、IPAの公式スコア(項目反応理論に基づく)とは異なります。参考値としてご利用ください。";
@@ -74,6 +76,11 @@ const historyExportBtn = document.getElementById("history-export-btn");
 const historyImportBtn = document.getElementById("history-import-btn");
 const historyImportInput = document.getElementById("history-import-input");
 const historyTransferMessageEl = document.getElementById("history-transfer-message");
+
+const showAnalysisBtn = document.getElementById("show-analysis-btn");
+const analysisContentEl = document.getElementById("analysis-content");
+const analysisPracticeBtn = document.getElementById("analysis-practice-btn");
+const analysisBackBtn = document.getElementById("analysis-back-btn");
 
 const showGlossaryBtn = document.getElementById("show-glossary-btn");
 const glossarySearchEl = document.getElementById("glossary-search");
@@ -253,23 +260,32 @@ function isMockExamEntry(entry) {
   return !entry.mode || entry.mode === EXAM_MODE_NORMAL;
 }
 
-// 履歴(模試と復習の両方)を古い順にたどり、各問題の「最後に解いたときの回答」が
-// 不正解・未回答だった問題を集める。復習で正解すれば、その問題は対象から外れる
-function collectWrongQuestionIds() {
+// 履歴(模試・復習・一問一答)を古い順にたどり、問題ごとに
+// 「最初に解いたときに正解したか(first)」と「最後に解いたときに正解したか(latest)」を集める
+function collectQuestionResults() {
   const history = loadHistory()
     .slice()
     .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
-  const lastCorrect = new Map();
+  const first = new Map();
+  const latest = new Map();
   history.forEach((entry) => {
     // 回答の記録がない履歴(読み込んだ古いデータなど)は飛ばす
     if (!Array.isArray(entry.questionIds) || !entry.answers || typeof entry.answers !== "object") return;
     entry.questionIds.forEach((id) => {
       const question = QUESTIONS_BY_ID.get(id);
       if (!question) return;
-      lastCorrect.set(id, entry.answers[id] === question.answerIndex);
+      const correct = entry.answers[id] === question.answerIndex;
+      if (!first.has(id)) first.set(id, correct);
+      latest.set(id, correct);
     });
   });
-  return [...lastCorrect].filter(([, correct]) => !correct).map(([id]) => id);
+  return { first, latest };
+}
+
+// 最後に解いたときの回答が不正解・未回答だった問題を集める。復習で正解すれば、その問題は対象から外れる
+function collectWrongQuestionIds() {
+  const { latest } = collectQuestionResults();
+  return [...latest].filter(([, correct]) => !correct).map(([id]) => id);
 }
 
 function startNewExam(desiredCount) {
@@ -400,15 +416,24 @@ function formatDuration(ms) {
 }
 
 function gradeExam(state) {
+  const counts = {};
+  for (const cat of CATEGORIES) {
+    const idsInCategory = state.questionIds.filter((id) => QUESTIONS_BY_ID.get(id).category === cat.code);
+    counts[cat.code] = {
+      total: idsInCategory.length,
+      correct: idsInCategory.filter((id) => state.answers[id] === QUESTIONS_BY_ID.get(id).answerIndex).length
+    };
+  }
+  return buildScoreSummary(counts);
+}
+
+// 分野ごとの { total, correct } から、分野別と総合の正答率・推定スコアを計算する
+function buildScoreSummary(counts) {
   const categoryBreakdown = {};
   let correctCount = 0;
   let totalQuestions = 0;
   for (const cat of CATEGORIES) {
-    const idsInCategory = state.questionIds.filter((id) => QUESTIONS_BY_ID.get(id).category === cat.code);
-    const total = idsInCategory.length;
-    const correct = idsInCategory.filter(
-      (id) => state.answers[id] === QUESTIONS_BY_ID.get(id).answerIndex
-    ).length;
+    const { total, correct } = counts[cat.code];
     const percentage = total > 0 ? (correct / total) * 100 : 0;
     const scoreApprox = total > 0 ? Math.round((correct / total) * SCORE_SCALE_MAX) : 0;
     categoryBreakdown[cat.code] = { total, correct, percentage, scoreApprox };
@@ -1015,6 +1040,139 @@ function renderGlossaryView() {
   window.scrollTo(0, 0);
 }
 
+// 問題ごとの正誤(Map: 問題ID → 正解したか)を、分野ごとの { total, correct } にまとめる
+function countResultsByCategory(results) {
+  const counts = {};
+  CATEGORIES.forEach((cat) => { counts[cat.code] = { total: 0, correct: 0 }; });
+  results.forEach((correct, id) => {
+    const data = counts[QUESTIONS_BY_ID.get(id).category];
+    data.total += 1;
+    if (correct) data.correct += 1;
+  });
+  return counts;
+}
+
+// 直近の模試(お試し10問も含む)を合わせて、本番の基準で推定スコアを出す。模試がなければ null
+function summarizeRecentMockExams() {
+  const exams = loadHistory()
+    .filter((entry) => isMockExamEntry(entry) && entry.categoryBreakdown)
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
+    .slice(-ANALYSIS_RECENT_EXAM_COUNT);
+  if (exams.length === 0) return null;
+  const counts = {};
+  CATEGORIES.forEach((cat) => {
+    counts[cat.code] = { total: 0, correct: 0 };
+    exams.forEach((entry) => {
+      const data = entry.categoryBreakdown[cat.code];
+      if (!data) return;
+      counts[cat.code].total += data.total;
+      counts[cat.code].correct += data.correct;
+    });
+  });
+  return { examCount: exams.length, summary: buildScoreSummary(counts) };
+}
+
+function toPercent(correct, total) {
+  return total > 0 ? Math.round((correct / total) * 100) : 0;
+}
+
+function buildAnalysisCard(heading) {
+  const card = document.createElement("div");
+  card.className = "analysis-card";
+  card.appendChild(createTextElement("h3", "", heading));
+  analysisContentEl.appendChild(card);
+  return card;
+}
+
+function renderPassEstimateCard() {
+  const card = buildAnalysisCard("合格の見込み");
+  const recent = summarizeRecentMockExams();
+  if (!recent) {
+    card.appendChild(createTextElement("p", "analysis-note", "模試（お試し10問を含む）を受けると表示されます。"));
+    return;
+  }
+  const { summary, examCount } = recent;
+  const judgement = judgePass(summary);
+  card.appendChild(createTextElement("p", "analysis-big",
+    "推定 " + summary.overallScoreApprox + "点（合格ライン " + PASSING_TOTAL_SCORE + "点）"));
+  card.appendChild(createTextElement("p", "pass-banner " + (judgement.passed ? "passed" : "failed"),
+    judgement.passed ? "✅ 合格ラインに届いています" : "❌ " + judgement.reasons.join("、")));
+  card.appendChild(createTextElement("p", "analysis-note",
+    "直近" + examCount + "回の模試（計" + summary.totalQuestions + "問）から計算しています。"));
+}
+
+function renderFirstTryCard(first) {
+  const card = buildAnalysisCard("本当の実力（初めて見た問題の正答率）");
+  const counts = countResultsByCategory(first);
+  const total = CATEGORIES.reduce((sum, cat) => sum + counts[cat.code].total, 0);
+  const correct = CATEGORIES.reduce((sum, cat) => sum + counts[cat.code].correct, 0);
+  card.appendChild(createTextElement("p", "analysis-big", toPercent(correct, total) + "%"));
+  card.appendChild(createTextElement("p", "analysis-note",
+    "初めて解いたときに正解した問題の割合です（" + total + "問中 " + correct + "問）。"
+    + "同じ問題をくり返すと答えを覚えてしまうので、本番の実力はこちらの数字に近くなります。"));
+}
+
+// 分野ごとの棒グラフを描き、いちばん正答率が低い分野を返す(解いた問題がなければ null)
+function renderCategoryCard(latest) {
+  const card = buildAnalysisCard("分野ごとの正答率（最後に解いたときの結果）");
+  const counts = countResultsByCategory(latest);
+  const attempted = CATEGORIES.filter((cat) => counts[cat.code].total > 0);
+  const rateOf = (cat) => counts[cat.code].correct / counts[cat.code].total;
+  const weakest = attempted.reduce((min, cat) => (!min || rateOf(cat) < rateOf(min) ? cat : min), null);
+  // 全分野が同じ正答率なら「いちばん苦手」の印は付けない
+  const markWeakest = weakest !== null && attempted.some((cat) => rateOf(cat) > rateOf(weakest));
+  CATEGORIES.forEach((cat) => {
+    const { total, correct } = counts[cat.code];
+    const poolSize = QUESTIONS.filter((q) => q.category === cat.code).length;
+    const percent = toPercent(correct, total);
+    const row = document.createElement("div");
+    row.className = "analysis-row";
+    const label = document.createElement("div");
+    label.className = "analysis-row-label";
+    label.appendChild(createTextElement("span", "", cat.label));
+    let status = total > 0 ? percent + "%" : "まだ解いていません";
+    if (total > 0 && percent * 10 < PASSING_CATEGORY_SCORE) {
+      status += " ⚠ 合格ライン未満";
+    } else if (markWeakest && cat === weakest) {
+      status += " ⚠ いちばん苦手";
+    }
+    label.appendChild(createTextElement("span", "analysis-row-status", status));
+    row.appendChild(label);
+    const bar = document.createElement("div");
+    bar.className = "analysis-bar";
+    const fill = document.createElement("div");
+    fill.className = "analysis-bar-fill" + (markWeakest && cat === weakest ? " weak" : "");
+    fill.style.width = percent + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    row.appendChild(createTextElement("p", "analysis-note",
+      "解いたことがある問題 " + total + " / " + poolSize + "問（正解 " + correct + "問）"));
+    card.appendChild(row);
+  });
+  return weakest;
+}
+
+function renderAnalysisView() {
+  analysisContentEl.innerHTML = "";
+  analysisPracticeBtn.hidden = true;
+  const { first, latest } = collectQuestionResults();
+  if (latest.size === 0) {
+    analysisContentEl.appendChild(createTextElement("p", "analysis-note",
+      "まだ履歴がありません。模試か一問一答をすると、ここに苦手な分野が表示されます。"));
+  } else {
+    renderPassEstimateCard();
+    renderFirstTryCard(first);
+    const weakest = renderCategoryCard(latest);
+    if (weakest) {
+      analysisPracticeBtn.textContent = weakest.label + "を一問一答で練習";
+      analysisPracticeBtn.dataset.category = weakest.code;
+      analysisPracticeBtn.hidden = false;
+    }
+  }
+  showView("analysis");
+  window.scrollTo(0, 0);
+}
+
 function init() {
   startExamBtn.addEventListener("click", () => startNewExam(EXAM_QUESTION_COUNT));
   startQuickExamBtn.addEventListener("click", () => startNewExam(QUICK_EXAM_QUESTION_COUNT));
@@ -1038,6 +1196,9 @@ function init() {
     const btn = event.target.closest(".history-delete-btn");
     if (btn) deleteHistoryEntry(Number(btn.dataset.index));
   });
+  showAnalysisBtn.addEventListener("click", renderAnalysisView);
+  analysisBackBtn.addEventListener("click", renderStartView);
+  analysisPracticeBtn.addEventListener("click", () => startPractice(analysisPracticeBtn.dataset.category));
   showGlossaryBtn.addEventListener("click", renderGlossaryView);
   glossaryBackBtn.addEventListener("click", renderStartView);
   glossarySearchEl.addEventListener("input", () => {

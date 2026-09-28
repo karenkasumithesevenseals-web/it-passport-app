@@ -1,4 +1,4 @@
-const CACHE_NAME = "it-passport-cache-v12";
+const CACHE_NAME = "it-passport-cache-v13";
 const CACHE_ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const CACHE_ASSETS = [
   "./manifest.json",
   "./data/questions-base.js",
   "./data/questions-sample.js",
+  "./data/questions-r07.js",
   "./data/questions-r06.js",
   "./data/questions-r06-technology.js",
   "./data/questions-r06-technology-2.js",

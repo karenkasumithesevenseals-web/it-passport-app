@@ -26,6 +26,10 @@ const EXAM_MODE_PRACTICE = "practice";
 const HISTORY_CHART_MAX_POINTS = 20;
 // 苦手分析の「合格の見込み」で合わせる、直近の模試の回数
 const ANALYSIS_RECENT_EXAM_COUNT = 3;
+// 忘れたころにもう一度出す復習: 続けて1回・2回・3回正解した問題を、それぞれ何日後に再出題するか。
+// この回数より多く続けて正解したら卒業(復習に出さない)
+const REVIEW_INTERVAL_DAYS = [1, 3, 7];
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TIMER_TICK_MS = 1000;
 const SCORE_DISCLAIMER_TEXT = "この1000点満点スコアは正答率に基づく独自の簡易換算であり、IPAの公式スコア(項目反応理論に基づく)とは異なります。参考値としてご利用ください。";
@@ -261,31 +265,59 @@ function isMockExamEntry(entry) {
 }
 
 // 履歴(模試・復習・一問一答)を古い順にたどり、問題ごとに
-// 「最初に解いたときに正解したか(first)」と「最後に解いたときに正解したか(latest)」を集める
+// 「最初に解いたときに正解したか(first)」と「最後に解いたときに正解したか(latest)」、
+// 復習用に「一度でも間違えたか(everWrong)」「最後から数えて何回続けて正解したか(streak)」
+// 「その回数を数えた最後の日時(lastTime)」を集める
 function collectQuestionResults() {
   const history = loadHistory()
     .slice()
     .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
   const first = new Map();
   const latest = new Map();
+  const everWrong = new Set();
+  const streak = new Map();
+  const lastTime = new Map();
   history.forEach((entry) => {
     // 回答の記録がない履歴(読み込んだ古いデータなど)は飛ばす
     if (!Array.isArray(entry.questionIds) || !entry.answers || typeof entry.answers !== "object") return;
+    const time = Date.parse(entry.date);
     entry.questionIds.forEach((id) => {
       const question = QUESTIONS_BY_ID.get(id);
       if (!question) return;
       const correct = entry.answers[id] === question.answerIndex;
       if (!first.has(id)) first.set(id, correct);
       latest.set(id, correct);
+      if (!correct) everWrong.add(id);
+      const count = streak.get(id) || 0;
+      // 再出題の日より前に正解しても(一問一答でたまたま出たときなど)、続けて正解した回数には数えない
+      const early = correct && count > 0 && count <= REVIEW_INTERVAL_DAYS.length
+        && toLocalDayNumber(time) - toLocalDayNumber(lastTime.get(id)) < REVIEW_INTERVAL_DAYS[count - 1];
+      if (!early) {
+        streak.set(id, correct ? count + 1 : 0);
+        lastTime.set(id, time);
+      }
     });
   });
-  return { first, latest };
+  return { first, latest, everWrong, streak, lastTime };
 }
 
-// 最後に解いたときの回答が不正解・未回答だった問題を集める。復習で正解すれば、その問題は対象から外れる
-function collectWrongQuestionIds() {
-  const { latest } = collectQuestionResults();
-  return [...latest].filter(([, correct]) => !correct).map(([id]) => id);
+// 端末の時刻で見た「日付」の通し番号。「1日後」を24時間後ではなく、日付が変わった後として数えるために使う
+function toLocalDayNumber(time) {
+  const d = new Date(time);
+  return Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / MS_PER_DAY);
+}
+
+// 今日復習する問題を集める。対象は一度でも間違えた問題だけで、
+// 最後が不正解ならすぐ、続けて正解していれば REVIEW_INTERVAL_DAYS の日数がたってから出す
+function collectTodayReviewQuestionIds() {
+  const { everWrong, streak, lastTime } = collectQuestionResults();
+  const today = toLocalDayNumber(Date.now());
+  return [...everWrong].filter((id) => {
+    const count = streak.get(id);
+    if (count === 0) return true;
+    if (count > REVIEW_INTERVAL_DAYS.length) return false;
+    return today - toLocalDayNumber(lastTime.get(id)) >= REVIEW_INTERVAL_DAYS[count - 1];
+  });
 }
 
 function startNewExam(desiredCount) {
@@ -293,7 +325,7 @@ function startNewExam(desiredCount) {
 }
 
 function startReviewExam() {
-  const questionIds = shuffleArray(collectWrongQuestionIds()).slice(0, EXAM_QUESTION_COUNT);
+  const questionIds = shuffleArray(collectTodayReviewQuestionIds()).slice(0, EXAM_QUESTION_COUNT);
   if (questionIds.length === 0) return;
   startExam(questionIds, EXAM_MODE_REVIEW);
 }
@@ -472,9 +504,9 @@ function renderStartView() {
   } else {
     resumeBannerEl.hidden = true;
   }
-  const wrongCount = collectWrongQuestionIds().length;
-  startReviewBtn.textContent = "間違えた問題を復習（" + wrongCount + "問）";
-  startReviewBtn.disabled = wrongCount === 0;
+  const reviewCount = collectTodayReviewQuestionIds().length;
+  startReviewBtn.textContent = "今日の復習（" + reviewCount + "問）";
+  startReviewBtn.disabled = reviewCount === 0;
   showView("start");
 }
 

@@ -1,4 +1,19 @@
+/**
+ * サービスワーカー（アプリの裏で動く小さなプログラム）
+ *
+ * 役割: アプリのファイルを端末に保存（キャッシュ）しておき、
+ *       電波がないときでもアプリを開けるようにする。
+ *
+ *   ネットにつながる → サーバーから最新のファイルを取って表示し、保存分も新しくする
+ *   ネットにつながらない → 保存しておいたファイルで表示する
+ *
+ * このファイルは index.html から登録される。
+ */
+// 保存場所（キャッシュ）の名前。アプリを更新したら番号を1つ上げると、
+// 古い保存分が消えて、新しいファイルが iPhone などに届く
 const CACHE_NAME = "it-passport-cache-v14";
+// オフラインでも使えるよう保存しておくファイルの一覧。
+// 問題データや画像を追加したら、ここにも書き足す
 const CACHE_ASSETS = [
   "./",
   "./index.html",
@@ -23,6 +38,8 @@ const CACHE_ASSETS = [
   "./assets/icons/apple-touch-icon.png"
 ];
 
+// install（はじめて登録されたとき・新しい版になったとき）:
+// 上の一覧のファイルをまとめて保存する。skipWaiting() で新しい版をすぐ使い始める
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CACHE_ASSETS))
@@ -30,6 +47,8 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
+// activate（新しい版が動き始めたとき）:
+// 名前が今の CACHE_NAME と違う、古い保存分を消す。clients.claim() で開いている画面もすぐ切り替える
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((names) =>

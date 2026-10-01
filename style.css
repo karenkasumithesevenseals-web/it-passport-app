@@ -665,12 +665,14 @@ button:disabled {
    開始画面（#view-start）のデザイン
    テーマは「受験票」。上から順に
      途中の試験 → 今日の復習 → 受験票（本番形式の模試）→ 分野別 → その他
-   ここの指定は #view-start の中だけに効くので、ほかの画面の見た目は変わらない。
+   ほとんどの指定は #view-start の中だけに効く。
+   ただし書体・文字の色・控えめなボタン（.sub-btn）・選んでいる枠は、全画面共通にしている。
    色の名前: 紺 #1E2550（文字・枠）／受験票の紙 #F3F5FC／青 #4a6cf7（主なボタン）／
              黄 #F5B941（復習の線）と #FFF6E0（復習の地）
    ========================================================= */
 
-#view-start {
+/* 書体と文字の色はアプリ全体（すべての画面）に効かせる */
+.app {
   color: #1E2550;
   /* 端末に入っている読みやすい書体を順番に試す（ダウンロードはしない） */
   font-family: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
@@ -686,8 +688,10 @@ button:disabled {
   line-height: 1.4;
 }
 
-/* キーボードで選んでいるボタンに、はっきりした枠を出す */
-#view-start button:focus-visible {
+/* キーボードで選んでいるボタンに、はっきりした枠を出す（全画面） */
+.app button:focus-visible,
+.app input:focus-visible,
+.app summary:focus-visible {
   outline: 3px solid #F5B941;
   outline-offset: 2px;
 }
@@ -858,8 +862,8 @@ button:disabled {
   border: 2px solid #4a6cf7;
 }
 
-/* ---------- 控えめなボタン（お試し・分野別・履歴など） ---------- */
-#view-start .sub-btn {
+/* ---------- 控えめなボタン（全画面共通。お試し・戻る・前へ など） ---------- */
+.app .sub-btn {
   background: #fff;
   color: #1E2550;
   border: 2px solid #C9CFE6;
@@ -912,7 +916,7 @@ button:disabled {
 
 /* マウスのある端末だけ、のせたときに色を変える（スマホは押したあとに色が残るため） */
 @media (hover: hover) {
-  #view-start .sub-btn:hover:not(:disabled),
+  .app .sub-btn:hover:not(:disabled),
   #view-start #start-review-btn:hover:not(:disabled),
   #view-start .resume-banner:not([hidden]) ~ .ticket #start-exam-btn:hover {
     background: #eef2ff;
@@ -936,4 +940,288 @@ button:disabled {
     align-items: flex-start;
     gap: 2px;
   }
+}
+
+/* =========================================================
+   開始画面以外の画面のデザイン（試験・一問一答・結果・履歴・苦手分析・用語）
+   開始画面と同じ「受験票」の雰囲気にそろえる。決まりごと:
+     ・その画面で一番大事な操作だけ青いボタン（採点する・次の問題 など）
+     ・戻る・前へ などは白地に枠の控えめなボタン（.sub-btn）
+     ・削除のような危ない操作は、白地に赤い文字（目立たせすぎない）
+     ・まとまりは、受験票と同じ紙の色 #F3F5FC と紺の枠のカードにする
+   ※ 画面の作りは script.js が作るものも多いので、ここでは見た目だけを変える
+   ========================================================= */
+
+/* 見出しの文字の色 */
+h1,
+h2,
+h3 {
+  color: #1E2550;
+}
+
+/* 控えめなボタンが押せないとき（例: 1問目の「前へ」） */
+.app .sub-btn:disabled {
+  background: #EEE;
+  color: #555;
+  border-color: #DDD;
+}
+
+/* 画面の下の操作ボタンは、押しやすい高さにそろえる */
+.exam-nav button,
+.results-actions button,
+.history-actions button,
+.history-transfer-actions button {
+  min-height: 48px;
+  padding: 10px 20px;
+}
+
+/* 危ない操作（履歴の削除）: 白地に赤い文字 */
+.app .danger-btn {
+  background: #fff;
+  color: #B3261E;
+  border: 2px solid #EBB4B0;
+}
+
+/* 表の中の小さな削除ボタン */
+.app .history-delete-btn {
+  padding: 4px 10px;
+  border-width: 1px;
+}
+
+/* 分野の印（例: ストラテジ系）。受験票の「受験票」の印と同じ、はんこのような形 */
+.category-tag {
+  background: #fff;
+  color: #1E2550;
+  border: 1.5px solid #1E2550;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+/* ---------- 試験・一問一答: 上の帯（分野・問題番号・残り時間） ---------- */
+#view-exam .exam-header,
+#view-practice .exam-header {
+  background: #F3F5FC;
+  border: 2px solid #1E2550;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-timer {
+  color: #1E2550;
+}
+
+/* 選択肢のボタン: 枠を受験票の色に */
+.choice-btn {
+  border-color: #C9CFE6;
+  color: #1E2550;
+}
+
+.choice-btn::before {
+  border-color: #C9CFE6;
+}
+
+.choice-btn:disabled {
+  color: #1E2550;
+}
+
+/* 問題番号のボタン: iPhone でも押しやすい大きさに */
+.jump-btn {
+  background: #fff;
+  color: #555;
+  border: 1.5px solid #C9CFE6;
+}
+
+.jump-btn.answered {
+  background: #DDE3F7;
+  border-color: #DDE3F7;
+  color: #1E2550;
+  font-weight: bold;
+}
+
+@media (max-width: 480px) {
+  .jump-grid {
+    gap: 4px;
+  }
+
+  /* 1行に10個並ぶ幅で、高さは指で押しやすい 36px にする */
+  .jump-btn {
+    width: 30px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+}
+
+/* 正解・不正解・合否の表示を、少し大きくはっきりと */
+.pass-banner {
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+#practice-explanation,
+.review-explanation {
+  color: #333;
+  line-height: 1.7;
+}
+
+/* ---------- 結果・履歴: 表 ---------- */
+.score-table {
+  background: #fff;
+}
+
+.score-table th {
+  background: #F3F5FC;
+  color: #1E2550;
+  white-space: nowrap; /* 見出しが1文字ずつ縦に折れないようにする */
+}
+
+.score-table th,
+.score-table td {
+  border-color: #DDE1F0;
+}
+
+#results-overall {
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+
+/* 問題の復習カード */
+.review-card {
+  border: 1.5px solid #C9CFE6;
+  border-radius: 10px;
+}
+
+/* 履歴の書き出し・読み込みのまとまり */
+.history-transfer {
+  border-top: 2px dashed #9AA3C7; /* 受験票のミシン目と同じ点線 */
+}
+
+.history-transfer-note {
+  color: #333;
+  line-height: 1.6;
+}
+
+/* ---------- 苦手分析: カードを受験票と同じ紙と枠に ---------- */
+.analysis-card {
+  background: #F3F5FC;
+  border: 2px solid #1E2550;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.analysis-big {
+  color: #1E2550;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-note {
+  color: #333;
+  line-height: 1.6;
+}
+
+.analysis-bar {
+  background: #fff;
+  border: 1px solid #C9CFE6;
+}
+
+/* ---------- 用語・計算式: タブと分野の切り替え ---------- */
+.glossary-tab-btn,
+.glossary-filter-btn {
+  background: #fff;
+  color: #1E2550;
+  border: 2px solid #C9CFE6;
+}
+
+.glossary-tab-btn {
+  min-width: 96px;
+  font-weight: bold;
+}
+
+/* いま選んでいるタブ・分野は紺で塗る */
+.glossary-tab-btn.active,
+.glossary-filter-btn.active {
+  background: #1E2550;
+  border-color: #1E2550;
+  color: #fff;
+}
+
+.glossary-search {
+  border: 2px solid #C9CFE6;
+  font-family: inherit;
+  color: #1E2550;
+}
+
+.glossary-count {
+  color: #333;
+}
+
+.glossary-item {
+  border: 1.5px solid #C9CFE6;
+  border-radius: 10px;
+}
+
+.glossary-title::before {
+  color: #1E2550;
+}
+
+.glossary-formula {
+  color: #1E2550;
+}
+
+.glossary-text,
+.glossary-example {
+  color: #333;
+  line-height: 1.7;
+}
+
+/* マウスのある端末だけ、のせたときに色を変える */
+@media (hover: hover) {
+  .app .danger-btn:hover:not(:disabled) {
+    background: #FDECEC;
+    border-color: #B3261E;
+  }
+
+  .glossary-tab-btn:hover:not(.active),
+  .glossary-filter-btn:hover:not(.active) {
+    background: #eef2ff;
+    border-color: #4a6cf7;
+  }
+
+  .glossary-tab-btn.active:hover,
+  .glossary-filter-btn.active:hover {
+    background: #1E2550;
+  }
+}
+
+/* この書体は行の間が詰まりやすいので、全画面で行の間を広げる（見出しは少しだけ） */
+.app {
+  line-height: 1.6;
+}
+
+.app h1,
+.app h2,
+.app h3,
+.glossary-item summary,
+.analysis-card h3 {
+  line-height: 1.4;
+}
+
+/* 表の中の文字も折り返さない（「不合格」が縦に折れないように）。入りきらない表は横に動かして見る */
+.score-table td {
+  white-space: nowrap;
+}
+
+/* ただし1列目（日時・分野）は、日付と時刻の間で折り返してよい（表が横に長くなりすぎないように） */
+.score-table td:first-child {
+  white-space: normal;
+}
+
+/* 試験・一問一答の下のボタンが押せないとき（例: 全問答えるまでの「採点する」）。文字が読める灰色にする */
+.exam-nav button:disabled {
+  background: #EEE;
+  color: #555;
+  border: 2px solid #DDD;
 }

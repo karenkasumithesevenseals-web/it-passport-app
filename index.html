@@ -19,25 +19,49 @@
     <h1>ITパスポート模擬試験</h1>
 
     <section class="view active" id="view-start">
-      <p>本番同様、100問・制限時間付きの模擬試験に挑戦できます。時間がないときは「お試し10問」で分野バランスを保ったまま短時間の確認もできます。</p>
+      <!--
+        開始画面は上から「途中の試験 → 今日の復習 → 受験票（本番形式の模試）→ 分野別 → その他」の順。
+        ボタンの id は script.js が使うので変えないこと。
+      -->
+
+      <!-- 途中の試験があるときだけ表示される（script.js が hidden を切り替える） -->
       <div id="resume-banner" class="resume-banner" hidden>
-        <p>前回の試験が途中で終了しています。続きから再開できます。</p>
-        <button type="button" id="resume-exam-btn">前回の試験を再開する</button>
+        <p>前回の試験が途中です。続きから再開できます。</p>
+        <button type="button" id="resume-exam-btn">続きから再開する</button>
       </div>
-      <div class="start-actions">
-        <button type="button" id="start-exam-btn">新しい試験を開始</button>
-        <button type="button" id="start-quick-exam-btn">お試し10問</button>
+
+      <!-- 今日の復習。ボタンの文字「今日の復習（○問）」は script.js が書き換える -->
+      <div class="review-box">
         <button type="button" id="start-review-btn" disabled>今日の復習</button>
-        <button type="button" id="show-history-btn">履歴を見る</button>
-        <button type="button" id="show-analysis-btn">苦手分析</button>
-        <button type="button" id="show-glossary-btn">用語・計算式まとめ</button>
+        <p class="start-note">まちがえた問題が、日をおいて出ます。</p>
       </div>
-      <h3>分野別の一問一答</h3>
-      <p class="practice-note">時間制限なし。1問ずつ答えると、すぐに正解と解説が表示されます。</p>
-      <div class="start-actions">
-        <button type="button" class="start-practice-btn" data-category="strategy">ストラテジ系</button>
-        <button type="button" class="start-practice-btn" data-category="management">マネジメント系</button>
-        <button type="button" class="start-practice-btn" data-category="technology">テクノロジ系</button>
+
+      <!-- 受験票の形をした、本番形式の模擬試験 -->
+      <div class="ticket">
+        <p class="ticket-title"><span class="ticket-label">受験票</span>本番形式の模擬試験</p>
+        <!-- 下の数字は script.js の EXAM_QUESTION_COUNT・EXAM_TIME_LIMIT_MINUTES・PASSING_TOTAL_SCORE と合わせる -->
+        <dl class="ticket-facts">
+          <div><dt>問題数</dt><dd>100<small>問</small></dd></div>
+          <div><dt>制限時間</dt><dd>120<small>分</small></dd></div>
+          <div><dt>合格ライン</dt><dd>600<small>点</small></dd></div>
+        </dl>
+        <p class="ticket-rule">1000点満点で600点以上。<wbr>3分野それぞれ300点以上も必要です。</p>
+        <button type="button" id="start-exam-btn">新しい試験を開始</button>
+      </div>
+      <button type="button" id="start-quick-exam-btn" class="sub-btn">お試し10問（約12分）</button>
+
+      <h3 class="start-heading">分野別の一問一答</h3>
+      <p class="start-note">時間制限なし。1問ずつ答えると、すぐに正解と解説が出ます。</p>
+      <div class="practice-list">
+        <button type="button" class="start-practice-btn sub-btn" data-category="strategy">ストラテジ系<span>経営・法律</span></button>
+        <button type="button" class="start-practice-btn sub-btn" data-category="management">マネジメント系<span>開発・管理</span></button>
+        <button type="button" class="start-practice-btn sub-btn" data-category="technology">テクノロジ系<span>コンピュータ・ネットワーク</span></button>
+      </div>
+
+      <div class="tool-list">
+        <button type="button" id="show-history-btn" class="sub-btn">履歴を見る</button>
+        <button type="button" id="show-analysis-btn" class="sub-btn">苦手分析</button>
+        <button type="button" id="show-glossary-btn" class="sub-btn">用語・計算式</button>
       </div>
     </section>
 

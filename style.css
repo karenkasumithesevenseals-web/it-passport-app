@@ -660,3 +660,280 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* =========================================================
+   開始画面（#view-start）のデザイン
+   テーマは「受験票」。上から順に
+     途中の試験 → 今日の復習 → 受験票（本番形式の模試）→ 分野別 → その他
+   ここの指定は #view-start の中だけに効くので、ほかの画面の見た目は変わらない。
+   色の名前: 紺 #1E2550（文字・枠）／受験票の紙 #F3F5FC／青 #4a6cf7（主なボタン）／
+             黄 #F5B941（復習の線）と #FFF6E0（復習の地）
+   ========================================================= */
+
+#view-start {
+  color: #1E2550;
+  /* 端末に入っている読みやすい書体を順番に試す（ダウンロードはしない） */
+  font-family: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
+}
+
+/* 開始画面のボタン共通: 押しやすい大きさ（高さ48px以上） */
+#view-start button {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+/* キーボードで選んでいるボタンに、はっきりした枠を出す */
+#view-start button:focus-visible {
+  outline: 3px solid #F5B941;
+  outline-offset: 2px;
+}
+
+/* 押せないボタン（例: 今日の復習 0問）。薄すぎず、文字が読める灰色 */
+#view-start button:disabled {
+  background: #EEE;
+  color: #555;
+  border-color: #DDD;
+}
+
+/* 説明の文 */
+.start-note {
+  margin: 8px 0 0;
+  color: #333;
+  font-size: 1rem;
+  line-height: 1.6;
+  text-wrap: pretty; /* 最後の1文字だけが次の行に残らないようにする */
+}
+
+/* ---------- 途中の試験（あるときだけ一番上に出る） ---------- */
+/* hidden のときは隠れたままにするため、:not([hidden]) を付けて指定する */
+#view-start .resume-banner:not([hidden]) {
+  background: #eef2ff;
+  border: 2px solid #4a6cf7;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+#view-start .resume-banner p {
+  margin: 0 0 10px;
+  font-weight: bold;
+  line-height: 1.6;
+}
+
+/* 途中の試験があるときは「新しい試験を開始」を控えめにする（押し間違いで途中の試験が消えないように） */
+#view-start .resume-banner:not([hidden]) ~ .ticket #start-exam-btn {
+  background: #fff;
+  color: #1E2550;
+  border: 2px solid #1E2550;
+  font-weight: normal;
+}
+
+/* ---------- 今日の復習 ---------- */
+.review-box {
+  background: #FFF6E0;
+  border-left: 6px solid #F5B941;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 24px;
+}
+
+#view-start #start-review-btn {
+  background: #fff;
+  color: #1E2550;
+  border: 2px solid #F5B941;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+#view-start #start-review-btn:disabled {
+  background: #EEE;
+  color: #555;
+  border-color: #DDD;
+  font-weight: normal;
+}
+
+/* ---------- 受験票（本番形式の模擬試験） ---------- */
+.ticket {
+  position: relative;
+  background: #F3F5FC;
+  border: 2px solid #1E2550;
+  border-radius: 12px;
+  padding: 16px 16px 18px;
+}
+
+.ticket-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+
+/* 「受験票」の小さな印。はんこのような枠つき */
+.ticket-label {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border: 1.5px solid #1E2550;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+}
+
+/* 数字3つ（問題数・制限時間・合格点）。スマホでも横3列のまま */
+.ticket-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 16px 0 8px;
+  text-align: center;
+}
+
+.ticket-facts div + div {
+  border-left: 1px solid #C9CFE6;
+}
+
+.ticket-facts dt {
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.ticket-facts dd {
+  margin: 2px 0 0;
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-facts small {
+  margin-left: 2px;
+  font-size: 0.85rem;
+  font-weight: normal;
+}
+
+/* 合格の条件。下の点線が受験票の「ミシン目」 */
+.ticket-rule {
+  position: relative;
+  margin: 0 -16px 16px;
+  padding: 0 16px 14px;
+  border-bottom: 2px dashed #9AA3C7;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #333;
+  text-align: center;
+  word-break: keep-all; /* 区切り（<wbr> や句読点）以外では折り返さない */
+  overflow-wrap: anywhere; /* ただし入りきらないときは、どこでも折り返す */
+}
+
+/* ミシン目の両はしの半円の切りかき（白い丸を枠の上に重ねて表現） */
+.ticket-rule::before,
+.ticket-rule::after {
+  content: "";
+  position: absolute;
+  bottom: -11px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 2px solid #1E2550;
+  border-radius: 50%;
+}
+
+.ticket-rule::before {
+  left: -12px;
+  clip-path: inset(0 0 0 50%);
+}
+
+.ticket-rule::after {
+  right: -12px;
+  clip-path: inset(0 50% 0 0);
+}
+
+/* 「新しい試験を開始」: 画面でいちばん目立つボタン */
+#view-start #start-exam-btn {
+  min-height: 56px;
+  font-size: 1.15rem;
+  font-weight: bold;
+  border: 2px solid #4a6cf7;
+}
+
+/* ---------- 控えめなボタン（お試し・分野別・履歴など） ---------- */
+#view-start .sub-btn {
+  background: #fff;
+  color: #1E2550;
+  border: 2px solid #C9CFE6;
+}
+
+#view-start #start-quick-exam-btn {
+  margin-top: 10px;
+}
+
+.start-heading {
+  margin: 32px 0 0;
+  font-size: 1.15rem;
+}
+
+/* 分野別の3つ。分野名の横に、中身を一言そえる */
+.practice-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#view-start .start-practice-btn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px;
+  font-weight: bold;
+  text-align: left;
+}
+
+.start-practice-btn span {
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: #333;
+}
+
+/* 履歴・苦手分析・用語の3つを横に並べる（文字が長いときは折り返す） */
+.tool-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 28px;
+}
+
+#view-start .tool-list .sub-btn {
+  padding: 8px 4px;
+  font-size: 0.95rem;
+}
+
+/* マウスのある端末だけ、のせたときに色を変える（スマホは押したあとに色が残るため） */
+@media (hover: hover) {
+  #view-start .sub-btn:hover:not(:disabled),
+  #view-start #start-review-btn:hover:not(:disabled),
+  #view-start .resume-banner:not([hidden]) ~ .ticket #start-exam-btn:hover {
+    background: #eef2ff;
+    border-color: #4a6cf7;
+  }
+
+  #view-start #start-exam-btn:hover:not(:disabled),
+  #view-start #resume-exam-btn:hover:not(:disabled) {
+    background: #3a5ce0;
+  }
+}
+
+/* 細い画面では、受験票の数字を少し小さくして3列に収める */
+@media (max-width: 360px) {
+  .ticket-facts dd {
+    font-size: 1.6rem;
+  }
+
+  #view-start .start-practice-btn {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}

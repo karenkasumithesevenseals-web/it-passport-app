@@ -1460,6 +1460,29 @@ function createTextElement(tagName, className, text) {
 }
 
 /**
+ * 略語の英語表記の部品を作る。「**」で囲んだ文字だけを太字（強調）にして表示する。
+ * 例: "**S**trengths" → 「S」だけ強調された「Strengths」。
+ * 文字は textContent と createTextNode で入れるので、記号があっても安全に表示される。
+ * @param {string} text - 英語表記。強調したい文字を ** で囲む。改行（\n）で行を分けられる
+ * @returns {HTMLElement} 作った部品（段落）
+ */
+function createEnglishElement(text) {
+  const p = document.createElement("p");
+  p.className = "glossary-english";
+  p.appendChild(createTextElement("span", "glossary-english-label", "英語"));
+  // "**" で区切ると、奇数番目（1, 3, 5…）が強調したい文字になる
+  text.split("**").forEach((part, index) => {
+    if (part === "") return;
+    if (index % 2 === 1) {
+      p.appendChild(createTextElement("strong", "glossary-english-mark", part));
+    } else {
+      p.appendChild(document.createTextNode(part));
+    }
+  });
+  return p;
+}
+
+/**
  * 用語または計算式1つ分の表示（タップすると開く部品）を作る。
  * @param {Object} item - GLOSSARY（用語）または FORMULAS（計算式）の1件
  * @param {boolean} isFormula - 計算式なら true
@@ -1473,6 +1496,9 @@ function buildGlossaryItem(item, isFormula) {
   summary.appendChild(createTextElement("span", "glossary-title", title));
   summary.appendChild(createTextElement("span", "category-tag", CATEGORY_BY_CODE.get(item.category).label));
   details.appendChild(summary);
+  if (item.english) {
+    details.appendChild(createEnglishElement(item.english));
+  }
   if (isFormula) {
     details.appendChild(createTextElement("p", "glossary-formula", item.formula));
     details.appendChild(createTextElement("p", "glossary-text", item.note));
@@ -1492,9 +1518,11 @@ function renderGlossaryList() {
   const items = (isFormula ? FORMULAS : GLOSSARY).filter((item) => {
     if (glossaryFilter.category !== "all" && item.category !== glossaryFilter.category) return false;
     if (!keyword) return true;
+    // 英語表記は、強調の印（**）を取り除いた文字で探す（例: "Threats" で見つかる）
+    const english = (item.english || "").split("**").join("");
     const searchText = isFormula
-      ? [item.title, item.formula, item.note, item.example]
-      : [item.term, item.reading, item.description];
+      ? [item.title, english, item.formula, item.note, item.example]
+      : [item.term, item.reading, english, item.description];
     return searchText.join(" ").toLowerCase().includes(keyword);
   });
   document.querySelectorAll(".glossary-tab-btn").forEach((btn) => {

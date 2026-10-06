@@ -569,6 +569,33 @@ button:disabled {
   color: #1d3a8a;
 }
 
+/* 略語の英語表記。「英語」の札のあとに続け、対応する文字（strong）だけ目立たせる */
+.glossary-english {
+  white-space: pre-line;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.glossary-english-label {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e8ecff;
+  color: #1d3a8a;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.glossary-english-mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #fff1b8;
+  color: #b42318;
+  font-size: 1.05em;
+  font-weight: 800;
+}
+
 .glossary-text {
   color: #444;
 }

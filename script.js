@@ -326,23 +326,64 @@ function ensureProgressInitialized(progress) {
  * 全部出し切ったら、出した問題を混ぜ直して2周目に入る（くじ引きの箱のイメージ）。
  * @param {Object} progress - 出題の記録（取り出した問題は「出した」側に移る）
  * @param {string} categoryCode - 分野（"strategy" など）
+ * 似た問題（data/similar-groups.js）は、1回の試験に1問までにする。
  * @param {number} count - 取り出す問題数
+ * @param {Set<number>} [usedGroups] - 今回の試験ですでに出した似た問題グループの番号（省略すると空）
  * @returns {string[]} 取り出した問題IDの一覧
  */
-function drawFromCategoryBag(progress, categoryCode, count) {
+function drawFromCategoryBag(progress, categoryCode, count, usedGroups = new Set()) {
   const bag = progress[categoryCode];
   const result = [];
   for (let i = 0; i < count; i++) {
-    if (bag.unseenIds.length === 0) {
-      if (bag.seenIds.length === 0) break;
-      bag.unseenIds = shuffleArray(bag.seenIds);
-      bag.seenIds = [];
+    let index = findFreshQuestionIndex(bag.unseenIds, usedGroups);
+    if (index < 0 && bag.unseenIds.length === 0 && bag.seenIds.length > 0) {
+      // 次の周に入る。今回すでに出した問題は、次の周でも「出した」側に置く（同じ試験で重ならないように）
+      bag.unseenIds = shuffleArray(bag.seenIds.filter((id) => !result.includes(id)));
+      bag.seenIds = result.slice();
+      index = findFreshQuestionIndex(bag.unseenIds, usedGroups);
     }
-    const id = bag.unseenIds.shift();
+    // 似ていない問題が残っていないときだけ、似た問題でも出す（出題数を守るため）
+    if (index < 0 && bag.unseenIds.length > 0) index = 0;
+    if (index < 0) break;
+    const [id] = bag.unseenIds.splice(index, 1);
     bag.seenIds.push(id);
     result.push(id);
+    markSimilarQuestionsUsed(bag, id, usedGroups);
   }
   return result;
+}
+
+/**
+ * 「まだ出していない」の中から、今回の試験で似た問題がまだ出ていない問題を探す。
+ * @param {string[]} unseenIds - まだ出していない問題IDの一覧
+ * @param {Set<number>} usedGroups - 今回の試験ですでに出した「似た問題グループ」の番号
+ * @returns {number} 見つかった位置（番号）。なければ -1
+ */
+function findFreshQuestionIndex(unseenIds, usedGroups) {
+  return unseenIds.findIndex((id) => {
+    const group = getSimilarGroupIndex(id);
+    return group === null || !usedGroups.has(group);
+  });
+}
+
+/**
+ * 問題を1つ出したあとの片づけ。
+ *  ・その問題のグループを「今回出した」に記録する
+ *  ・同じグループの似た問題を、「まだ出していない」から「出した」側へ移す
+ *    （次の周まで出ないので、続けて受けても似た問題が出にくくなる）
+ * @param {{unseenIds: string[], seenIds: string[]}} bag - 分野の出題の記録（直接書き換える）
+ * @param {string} id - 今出した問題ID
+ * @param {Set<number>} usedGroups - 今回出したグループの番号（直接書き換える）
+ */
+function markSimilarQuestionsUsed(bag, id, usedGroups) {
+  const group = getSimilarGroupIndex(id);
+  if (group === null) return;
+  usedGroups.add(group);
+  const mates = new Set(getSimilarQuestionIds(id));
+  const moved = bag.unseenIds.filter((other) => mates.has(other));
+  if (moved.length === 0) return;
+  bag.unseenIds = bag.unseenIds.filter((other) => !mates.has(other));
+  bag.seenIds.push(...moved);
 }
 
 /**
@@ -408,8 +449,9 @@ function drawQuestionsForExam(desiredCount) {
   const totalDesired = Math.min(desiredCount, totalPool);
   const quota = computeCategoryQuotas(totalDesired, poolSizes);
   let ids = [];
+  const usedGroups = new Set(); // 今回の試験で出した「似た問題グループ」（1グループ1問まで）
   for (const cat of CATEGORIES) {
-    ids = ids.concat(drawFromCategoryBag(progress, cat.code, quota[cat.code]));
+    ids = ids.concat(drawFromCategoryBag(progress, cat.code, quota[cat.code], usedGroups));
   }
   shuffleArray(ids);
   saveQuestionProgress(progress);

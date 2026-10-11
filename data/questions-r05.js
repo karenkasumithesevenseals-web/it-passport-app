@@ -868,7 +868,7 @@ QUESTIONS.push(
     ],
     answerIndex: 2,
     explanation: "条件(1)または(2)のいずれかに該当すればよいので、3つの条件((A2+B2)≧120, A2=100, B2=100)のいずれかが真であればよい「論理和」を用い、真のとき'合格'を表示するIF式が適切。",
-    images: [],
+    images: ["assets/images/r05/q75-sheet.png"],
     sourceUrl: R05_SOURCE_URL
   },
   {

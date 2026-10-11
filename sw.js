@@ -11,7 +11,7 @@
  */
 // 保存場所（キャッシュ）の名前。アプリを更新したら番号を1つ上げると、
 // 古い保存分が消えて、新しいファイルが iPhone などに届く
-const CACHE_NAME = "it-passport-cache-v25";
+const CACHE_NAME = "it-passport-cache-v26";
 // オフラインでも使えるよう保存しておくファイルの一覧。
 // 問題データや画像を追加したら、ここにも書き足す
 const CACHE_ASSETS = [
@@ -36,6 +36,8 @@ const CACHE_ASSETS = [
   "./assets/images/r06/q67-reliability-diagram.png",
   "./assets/images/r05/q33-inventory-table.png",
   "./assets/images/r08/q03-maximin-table.png",
+  "./assets/images/r05/q75-sheet.png",
+  "./assets/images/r08/q74-binary-sheet.png",
   "./assets/images/r05/q13-cost-table.png",
   "./assets/images/r05/q59-member-tables.png",
   "./assets/images/r05/q76-test-result.png",

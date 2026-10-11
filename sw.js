@@ -11,7 +11,7 @@
  */
 // 保存場所（キャッシュ）の名前。アプリを更新したら番号を1つ上げると、
 // 古い保存分が消えて、新しいファイルが iPhone などに届く
-const CACHE_NAME = "it-passport-cache-v19";
+const CACHE_NAME = "it-passport-cache-v21";
 // オフラインでも使えるよう保存しておくファイルの一覧。
 // 問題データや画像を追加したら、ここにも書き足す
 const CACHE_ASSETS = [
@@ -33,6 +33,23 @@ const CACHE_ASSETS = [
   "./assets/images/r06/q60-rdb-diagram.png",
   "./assets/images/r06/q67-reliability-diagram.png",
   "./assets/images/r05/q33-inventory-table.png",
+  "./assets/images/r08/q03-maximin-table.png",
+  "./assets/images/r05/q13-cost-table.png",
+  "./assets/images/r05/q59-member-tables.png",
+  "./assets/images/r05/q76-test-result.png",
+  "./assets/images/r05/q77-score-table.png",
+  "./assets/images/r05/q86-hybrid-diagram.png",
+  "./assets/images/r06/q08-income-table.png",
+  "./assets/images/r06/q57-cipher-table.png",
+  "./assets/images/r06/q81-order-table.png",
+  "./assets/images/r06/q93-employee-table.png",
+  "./assets/images/r07/q26-sales-table.png",
+  "./assets/images/r07/q54-ai-table.png",
+  "./assets/images/r07/q66-login-tables.png",
+  "./assets/images/r08/q26-balance-sheet.png",
+  "./assets/images/r08/q50-task-table.png",
+  "./assets/images/r08/q57-student-tables.png",
+  "./assets/images/r08/q72-bank-tables.png",
   "./assets/images/r05/q41-arrow-diagram.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",

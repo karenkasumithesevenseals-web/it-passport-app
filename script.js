@@ -51,6 +51,7 @@
  * @property {string} mode - 種類（"normal"=模試 / "review"=復習 / "practice"=一問一答）
  * @property {string[]} questionIds - 出した問題IDの一覧
  * @property {Object<string, (number|null)>} answers - 問題ID → 選んだ選択肢の番号（未回答は null）
+ * @property {Object<string, number[]>} [choiceOrders] - 問題ID → 画面に出した選択肢の並び順（元の番号を出した順に並べたもの。なければ元の順）
  * @property {number} totalQuestions - 問題数
  * @property {number} correctCount - 正解数
  * @property {number} percentageScore - 正答率（0〜100）
@@ -67,6 +68,7 @@
  * @property {number} timeLimitMs - 制限時間（ミリ秒）
  * @property {string[]} questionIds - 出す問題IDの順番
  * @property {Object<string, (number|null)>} answers - 問題ID → 選んだ選択肢の番号（未回答は null）
+ * @property {Object<string, number[]>} [choiceOrders] - 問題ID → 画面に出した選択肢の並び順（元の番号を出した順に並べたもの。なければ元の順）
  * @property {number} currentIndex - いま表示している問題が何問目か（0から数える）
  */
 
@@ -594,6 +596,7 @@ function startExam(questionIds, mode) {
     timeLimitMs,
     questionIds,
     answers: Object.fromEntries(questionIds.map((id) => [id, null])),
+    choiceOrders: makeChoiceOrders(questionIds, QUESTIONS_BY_ID),
     currentIndex: 0
   };
   saveExamState(examState);
@@ -660,6 +663,7 @@ function submitExam(auto) {
     mode: examState.mode || EXAM_MODE_NORMAL,
     questionIds: examState.questionIds,
     answers: examState.answers,
+    choiceOrders: examState.choiceOrders,
     totalQuestions: breakdown.totalQuestions,
     correctCount: breakdown.correctCount,
     percentageScore: breakdown.percentageScore,
@@ -881,7 +885,9 @@ function renderQuestionCard() {
     examQuestionImagesEl.appendChild(img);
   });
   examChoicesEl.innerHTML = "";
-  question.choices.forEach((choiceText, index) => {
+  // 画面に出す順番だけ入れ替える。選んだ番号は元の番号のまま記録する
+  getChoiceOrder(question, examState.choiceOrders).forEach((index) => {
+    const choiceText = question.choices[index];
     const button = document.createElement("button");
     button.type = "button";
     button.className = "choice-btn" + (examState.answers[id] === index ? " selected" : "");
@@ -1018,7 +1024,8 @@ function renderResultsView(historyEntry, auto) {
 
     const choiceList = document.createElement("ul");
     choiceList.className = "review-choices";
-    question.choices.forEach((choiceText, index) => {
+    getChoiceOrder(question, historyEntry.choiceOrders).forEach((index) => {
+      const choiceText = question.choices[index];
       const item = document.createElement("li");
       let label = choiceText;
       if (index === question.answerIndex) {
@@ -1205,6 +1212,7 @@ function startPractice(categoryCode) {
     category: categoryCode,
     questionIds: [],
     answers: {},
+    choiceOrders: {},
     currentId: null,
     answered: false
   };
@@ -1221,6 +1229,7 @@ function showNextPracticeQuestion() {
   saveQuestionProgress(progress);
   practiceState.currentId = id;
   practiceState.answered = false;
+  practiceState.choiceOrders[id] = makeChoiceOrder(QUESTIONS_BY_ID.get(id));
   renderPracticeView();
 }
 
@@ -1252,6 +1261,7 @@ function savePracticeToHistory() {
     mode: EXAM_MODE_PRACTICE,
     questionIds: practiceState.questionIds,
     answers: practiceState.answers,
+    choiceOrders: practiceState.choiceOrders,
     totalQuestions: breakdown.totalQuestions,
     correctCount: breakdown.correctCount,
     percentageScore: breakdown.percentageScore,
@@ -1294,7 +1304,8 @@ function renderPracticeView() {
     practiceQuestionImagesEl.appendChild(img);
   });
   practiceChoicesEl.innerHTML = "";
-  question.choices.forEach((choiceText, index) => {
+  getChoiceOrder(question, practiceState.choiceOrders).forEach((index) => {
+    const choiceText = question.choices[index];
     const button = document.createElement("button");
     button.type = "button";
     let className = "choice-btn";

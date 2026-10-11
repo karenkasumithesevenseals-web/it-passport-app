@@ -300,7 +300,7 @@ function shuffleArray(arr) {
 function ensureProgressInitialized(progress) {
   for (const cat of CATEGORIES) {
     if (!progress[cat.code]) {
-      progress[cat.code] = { unseenIds: [], seenIds: [] };
+      progress[cat.code] = { unseenIds: [], seenIds: [], shownIds: [] };
     }
   }
   for (const cat of CATEGORIES) {
@@ -316,6 +316,8 @@ function ensureProgressInitialized(progress) {
     }
     bag.unseenIds = bag.unseenIds.filter((id) => liveIdSet.has(id));
     bag.seenIds = bag.seenIds.filter((id) => liveIdSet.has(id));
+    // shownIds … 全問を一度は出し終えるまでの「一度でも出した問題」（古い記録にはないので空から始める）
+    bag.shownIds = Array.isArray(bag.shownIds) ? bag.shownIds.filter((id) => liveIdSet.has(id)) : [];
     if (added) {
       shuffleArray(bag.unseenIds);
     }
@@ -329,20 +331,27 @@ function ensureProgressInitialized(progress) {
  * @param {Object} progress - 出題の記録（取り出した問題は「出した」側に移る）
  * @param {string} categoryCode - 分野（"strategy" など）
  * 似た問題（data/similar-groups.js）は、1回の試験に1問までにする。
+ * 次の周では、似た問題のうち「まだ一度も出ていない問題」を先に出す（全問を早く見終えるため）。
  * @param {number} count - 取り出す問題数
  * @param {Set<number>} [usedGroups] - 今回の試験ですでに出した似た問題グループの番号（省略すると空）
  * @returns {string[]} 取り出した問題IDの一覧
  */
 function drawFromCategoryBag(progress, categoryCode, count, usedGroups = new Set()) {
   const bag = progress[categoryCode];
+  const shown = new Set(bag.shownIds || []);
+  // 似た問題が出ていない問題のうち、まだ一度も出ていないものを先に選ぶ。なければ出たことのあるものから選ぶ
+  const findIndexToDraw = () => {
+    const neverShown = findFreshQuestionIndex(bag.unseenIds, usedGroups, shown);
+    return neverShown >= 0 ? neverShown : findFreshQuestionIndex(bag.unseenIds, usedGroups);
+  };
   const result = [];
   for (let i = 0; i < count; i++) {
-    let index = findFreshQuestionIndex(bag.unseenIds, usedGroups);
+    let index = findIndexToDraw();
     if (index < 0 && bag.unseenIds.length === 0 && bag.seenIds.length > 0) {
       // 次の周に入る。今回すでに出した問題は、次の周でも「出した」側に置く（同じ試験で重ならないように）
       bag.unseenIds = shuffleArray(bag.seenIds.filter((id) => !result.includes(id)));
       bag.seenIds = result.slice();
-      index = findFreshQuestionIndex(bag.unseenIds, usedGroups);
+      index = findIndexToDraw();
     }
     // 似ていない問題が残っていないときだけ、似た問題でも出す（出題数を守るため）
     if (index < 0 && bag.unseenIds.length > 0) index = 0;
@@ -350,8 +359,12 @@ function drawFromCategoryBag(progress, categoryCode, count, usedGroups = new Set
     const [id] = bag.unseenIds.splice(index, 1);
     bag.seenIds.push(id);
     result.push(id);
+    shown.add(id);
+    // 全問を一度は出し終えたら、「一度でも出した」の記録を空に戻す
+    if (shown.size >= bag.unseenIds.length + bag.seenIds.length) shown.clear();
     markSimilarQuestionsUsed(bag, id, usedGroups);
   }
+  bag.shownIds = [...shown];
   return result;
 }
 
@@ -359,10 +372,12 @@ function drawFromCategoryBag(progress, categoryCode, count, usedGroups = new Set
  * 「まだ出していない」の中から、今回の試験で似た問題がまだ出ていない問題を探す。
  * @param {string[]} unseenIds - まだ出していない問題IDの一覧
  * @param {Set<number>} usedGroups - 今回の試験ですでに出した「似た問題グループ」の番号
+ * @param {Set<string>} [skipIds] - 探すときに除く問題ID（省略すると除かない）
  * @returns {number} 見つかった位置（番号）。なければ -1
  */
-function findFreshQuestionIndex(unseenIds, usedGroups) {
+function findFreshQuestionIndex(unseenIds, usedGroups, skipIds = new Set()) {
   return unseenIds.findIndex((id) => {
+    if (skipIds.has(id)) return false;
     const group = getSimilarGroupIndex(id);
     return group === null || !usedGroups.has(group);
   });

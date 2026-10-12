@@ -52,7 +52,7 @@ QUESTIONS.push(
       "20"
     ],
     answerIndex: 2,
-    explanation: "各戦略の最小値は、aが-15、bが0。最小値が大きいbを選ぶ。市況が好転した場合のbの利益は5。",
+    explanation: "マクシミン戦略は「いちばん悪い場合の利益が、いちばん大きい戦略を選ぶ」考え方です。【戦略a】好転20、悪化−15 → 最小は−15。【戦略b】好転5、悪化0 → 最小は0。最小値が大きいのはbなので、bを選びます。そのうえで市況が好転した場合のbの利益は5です。（20はaを選んだ場合の値なので、間違いです。）",
     images: ["assets/images/r08/q03-maximin-table.png"],
     sourceUrl: R08_SOURCE_URL
   },

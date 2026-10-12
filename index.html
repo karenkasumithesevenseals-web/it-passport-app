@@ -56,6 +56,8 @@
         <button type="button" class="start-practice-btn sub-btn" data-category="strategy">ストラテジ系<span>経営・法律</span></button>
         <button type="button" class="start-practice-btn sub-btn" data-category="management">マネジメント系<span>開発・管理</span></button>
         <button type="button" class="start-practice-btn sub-btn" data-category="technology">テクノロジ系<span>コンピュータ・ネットワーク</span></button>
+        <!-- 計算問題だけ。data-category="calc" は script.js の CALC_CATEGORY_CODE と合わせる -->
+        <button type="button" class="start-practice-btn sub-btn" data-category="calc">計算問題だけ<span>利益・稼働率・確率・日程など</span></button>
       </div>
 
       <div class="tool-list">
@@ -177,6 +179,7 @@
   <script src="data/similar-groups.js"></script>
   <script src="data/choice-order.js"></script>
   <script src="data/glossary.js"></script>
+  <script src="data/calc-questions.js"></script>
   <script src="script.js"></script>
   <script>
     if ("serviceWorker" in navigator) {

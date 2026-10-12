@@ -104,6 +104,9 @@ const PASSING_CATEGORY_SCORE = 300;
 const EXAM_MODE_NORMAL = "normal";
 const EXAM_MODE_REVIEW = "review";
 const EXAM_MODE_PRACTICE = "practice";
+// 一問一答で「計算問題だけ」を選んだときの分野コードと表示名（index.html のボタンの data-category と合わせる）
+const CALC_CATEGORY_CODE = "calc";
+const CALC_CATEGORY_LABEL = "計算問題";
 const HISTORY_CHART_MAX_POINTS = 20;
 // 苦手分析の「合格の見込み」で合わせる、直近の模試の回数
 const ANALYSIS_RECENT_EXAM_COUNT = 3;
@@ -1229,19 +1232,54 @@ function startPractice(categoryCode) {
     answers: {},
     choiceOrders: {},
     currentId: null,
-    answered: false
+    answered: false,
+    calcPool: [] // 「計算問題だけ」で、まだ出していない問題ID（なくなったら混ぜ直す）
   };
   showView("practice");
   showNextPracticeQuestion();
 }
 
 /**
+ * 「計算問題だけ」の次の問題IDを1つ取り出す。
+ * 全部出し切るまで同じ問題は出ない。出し切ったら、混ぜ直して次の周に入る。
+ * 出題の記録（itPassportQuestionProgress）には触らないので、模試の出題には影響しない。
+ * @returns {string} 問題ID
+ */
+function drawCalcQuestionId() {
+  if (practiceState.calcPool.length === 0) {
+    const previousId = practiceState.currentId;
+    practiceState.calcPool = shuffleArray(CALC_QUESTION_IDS.filter((id) => QUESTIONS_BY_ID.has(id)));
+    // 周が変わった直後に、同じ問題が続けて出ないようにする（最後に取り出す問題が直前と同じなら入れ替える）
+    const last = practiceState.calcPool.length - 1;
+    if (last > 0 && practiceState.calcPool[last] === previousId) {
+      [practiceState.calcPool[0], practiceState.calcPool[last]] = [practiceState.calcPool[last], practiceState.calcPool[0]];
+    }
+  }
+  return practiceState.calcPool.pop();
+}
+
+/**
+ * 一問一答の分野の表示名を返す。
+ * @param {string} categoryCode - 分野（"strategy" など。計算問題だけのときは "calc"）
+ * @returns {string} 画面に出す名前
+ */
+function getPracticeCategoryLabel(categoryCode) {
+  return categoryCode === CALC_CATEGORY_CODE ? CALC_CATEGORY_LABEL : CATEGORY_BY_CODE.get(categoryCode).label;
+}
+
+/**
  * 一問一答の次の問題を選んで表示する（模試と同じく、まだ出していない問題を優先する）。
+ * 「計算問題だけ」のときは、計算問題の一覧（data/calc-questions.js）から出す。
  */
 function showNextPracticeQuestion() {
-  const progress = ensureProgressInitialized(loadQuestionProgress());
-  const [id] = drawFromCategoryBag(progress, practiceState.category, 1);
-  saveQuestionProgress(progress);
+  let id;
+  if (practiceState.category === CALC_CATEGORY_CODE) {
+    id = drawCalcQuestionId();
+  } else {
+    const progress = ensureProgressInitialized(loadQuestionProgress());
+    [id] = drawFromCategoryBag(progress, practiceState.category, 1);
+    saveQuestionProgress(progress);
+  }
   practiceState.currentId = id;
   practiceState.answered = false;
   practiceState.choiceOrders[id] = makeChoiceOrder(QUESTIONS_BY_ID.get(id));
@@ -1307,7 +1345,7 @@ function renderPracticeView() {
   const correctCount = practiceState.questionIds.filter(
     (qid) => practiceState.answers[qid] === QUESTIONS_BY_ID.get(qid).answerIndex
   ).length;
-  practiceCategoryTagEl.textContent = CATEGORY_BY_CODE.get(practiceState.category).label;
+  practiceCategoryTagEl.textContent = getPracticeCategoryLabel(practiceState.category);
   practiceScoreEl.textContent = "正解 " + correctCount + " / " + answeredCount + "問";
   practiceQuestionTextEl.textContent = question.text;
   practiceQuestionImagesEl.innerHTML = "";

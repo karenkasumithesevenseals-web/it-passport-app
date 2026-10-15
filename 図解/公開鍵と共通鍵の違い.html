@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<!-- このファイルの役割: 「共通鍵暗号」と「公開鍵暗号」の仕組みと違いを図で説明するページ。
+     読み方: ブラウザで開くだけで見られる。上の <style> が見た目、下の <main> が中身。
+     文字の書体（Noto Sans JP）はインターネットにつながっているときだけ読み込む。つながっていなくても別の書体で表示される。 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公開鍵と共通鍵の違い</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<style>
+  /* 配置の考え方: 上から「共通鍵 → 公開鍵 → 比較 → 合わせ技 → 試験のポイント」。各方式は 送信者 → 通信中 → 受信者 の横の流れで見せる。 */
+  :root {
+    --bg: #F4F6F8;
+    --surface: #FFFFFF;
+    --fg: #1B2630;
+    --muted: #536270;
+    --line: #D3DCE3;
+    --kyo: #B45F06;       /* 共通鍵 */
+    --kyo-soft: #FBEAD4;
+    --pub: #0B7285;       /* 公開鍵 */
+    --pub-soft: #E0F1F4;
+    --sec: #B02A4A;       /* 秘密鍵 */
+    --sec-soft: #FADCE3;
+    --on-color: #FFFFFF;
+    --font: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F171D; --surface: #17232B; --fg: #E6EEF2; --muted: #9DB0BB; --line: #2C3D47;
+      --kyo: #F2A652; --kyo-soft: #3D2A12; --pub: #55C4D4; --pub-soft: #12373F;
+      --sec: #FF8DA5; --sec-soft: #45202B; --on-color: #0F171D;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F171D; --surface: #17232B; --fg: #E6EEF2; --muted: #9DB0BB; --line: #2C3D47;
+    --kyo: #F2A652; --kyo-soft: #3D2A12; --pub: #55C4D4; --pub-soft: #12373F;
+    --sec: #FF8DA5; --sec-soft: #45202B; --on-color: #0F171D;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font); line-height: 1.7; padding-inline: 16px; padding-block: 28px 48px; }
+  .page { max-width: 880px; margin-inline: auto; display: flex; flex-direction: column; gap: 26px; }
+  h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.3; font-weight: 900; margin: 0; text-wrap: balance; }
+  .lead { margin: 8px 0 0; color: var(--muted); font-size: 16px; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: var(--muted); letter-spacing: .06em; }
+  p { margin: 0; }
+
+  .block { border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .block.kyo { background: var(--kyo-soft); }
+  .block.pub { background: var(--pub-soft); }
+  .block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+  .block-head .name { font-size: 22px; font-weight: 900; }
+  .kyo .name { color: var(--kyo); }
+  .pub .name { color: var(--pub); }
+  .block-head .en { color: var(--muted); font-size: 13px; }
+  .oneline { font-size: 16px; font-weight: 700; }
+
+  /* 流れ: 送信者 → 通信中 → 受信者 */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: center; }
+  .node { background: var(--surface); border-radius: 10px; padding: 10px 12px; min-width: 0; text-align: center; }
+  .node .who { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .node .what { font-size: 17px; font-weight: 900; }
+  .node .sample { font-size: 14px; color: var(--muted); font-family: ui-monospace, Consolas, monospace; }
+  .node.cipher { border: 2px dashed var(--line); }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 96px; }
+  .step .act { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .step .arr { font-size: 18px; color: var(--muted); line-height: 1; }
+  .chip { border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 900; white-space: nowrap; color: var(--on-color); }
+  .chip.kyo { background: var(--kyo); }
+  .chip.pub { background: var(--pub); }
+  .chip.sec { background: var(--sec); }
+
+  .points { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; font-size: 15px; }
+  .good::marker { content: "○ "; color: var(--pub); font-weight: 900; }
+  .bad::marker { content: "× "; color: var(--sec); font-weight: 900; }
+  .points li { padding-left: 4px; }
+
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .pair > div { background: var(--surface); border-radius: 10px; padding: 10px 14px; min-width: 0; font-size: 15px; }
+  .pair b { display: block; font-size: 16px; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 15px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child th, tr:last-child td { border-bottom: 0; }
+  thead th { font-size: 16px; font-weight: 900; }
+  thead th.c-kyo { color: var(--kyo); }
+  thead th.c-pub { color: var(--pub); }
+  tbody th { font-weight: 700; color: var(--muted); width: 22%; }
+
+  .hybrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .hybrid > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; font-size: 15px; }
+  .hybrid .n { display: inline-block; width: 26px; height: 26px; border-radius: 50%; background: var(--fg); color: var(--bg); text-align: center; line-height: 26px; font-weight: 900; font-size: 14px; margin-right: 6px; }
+
+  .exam { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+  .exam b.kyo { color: var(--kyo); } .exam b.pub { color: var(--pub); } .exam b.sec { color: var(--sec); }
+  .note { color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .flow { grid-template-columns: 1fr; }
+    .step { flex-direction: row; justify-content: center; flex-wrap: wrap; gap: 6px 10px; padding-block: 2px; }
+    .step .arr { transform: rotate(90deg); }
+  }
+</style>
+
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>公開鍵と共通鍵の違い</h1>
+    <p class="lead">どちらも、データを「他の人に読まれない形」にするための鍵です。使う鍵の数と、渡し方が違います。</p>
+  </header>
+
+  <section>
+    <h2>① 共通鍵暗号方式</h2>
+    <div class="block kyo">
+      <div class="block-head"><span class="name">共通鍵</span><span class="en">暗号化と復号に、同じ鍵を使う（例：AES）</span></div>
+      <p class="oneline">同じ鍵で「閉めて」「開ける」。鍵は1本だけ。</p>
+      <div class="flow">
+        <div class="node"><div class="who">送信者</div><div class="what">平文</div><div class="sample">こんにちは</div></div>
+        <div class="step"><span class="act">暗号化</span><span class="chip kyo">共通鍵</span><span class="arr">▶</span></div>
+        <div class="node cipher"><div class="who">通信中</div><div class="what">暗号文</div><div class="sample">x9#Kq7…</div></div>
+        <div class="step"><span class="act">復号</span><span class="chip kyo">同じ共通鍵</span><span class="arr">▶</span></div>
+        <div class="node"><div class="who">受信者</div><div class="what">平文</div><div class="sample">こんにちは</div></div>
+      </div>
+      <ul class="points">
+        <li class="good">処理が速い（大きなデータ向き）</li>
+        <li class="bad">鍵を相手に安全に渡す方法が難しい（鍵配送問題）。途中で鍵を盗まれたら終わり</li>
+        <li class="bad">相手ごとに別の鍵が要る。10人が互いにやり取りすると、鍵は45本</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>② 公開鍵暗号方式</h2>
+    <div class="block pub">
+      <div class="block-head"><span class="name">公開鍵</span><span class="en">暗号化と復号に、ペアの別々の鍵を使う（例：RSA）</span></div>
+      <p class="oneline">閉める鍵（公開鍵）は誰にでも配る。開ける鍵（秘密鍵）は持ち主だけが持つ。</p>
+      <div class="pair">
+        <div><span class="chip pub">公開鍵</span><b>南京錠のイメージ</b>誰でも「カチッ」と閉められる。配ってよい。</div>
+        <div><span class="chip sec">秘密鍵</span><b>その錠の鍵のイメージ</b>持ち主だけが開けられる。絶対に見せない。</div>
+      </div>
+      <div class="flow">
+        <div class="node"><div class="who">送信者</div><div class="what">平文</div><div class="sample">こんにちは</div></div>
+        <div class="step"><span class="act">暗号化</span><span class="chip pub">受信者の公開鍵</span><span class="arr">▶</span></div>
+        <div class="node cipher"><div class="who">通信中</div><div class="what">暗号文</div><div class="sample">x9#Kq7…</div></div>
+        <div class="step"><span class="act">復号</span><span class="chip sec">受信者の秘密鍵</span><span class="arr">▶</span></div>
+        <div class="node"><div class="who">受信者</div><div class="what">平文</div><div class="sample">こんにちは</div></div>
+      </div>
+      <ul class="points">
+        <li class="good">公開鍵は配ってよいので、鍵を渡す問題が起きない</li>
+        <li class="good">1人が1組（公開鍵と秘密鍵）を持つだけ。10人なら10組で足りる</li>
+        <li class="bad">処理が遅い（大きなデータには向かない）</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>2つを比べる</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th class="c-kyo">共通鍵</th><th class="c-pub">公開鍵</th></tr></thead>
+        <tbody>
+          <tr><th>鍵の数</th><td>1本（暗号化と復号で同じ）</td><td>2本のペア（公開鍵と秘密鍵）</td></tr>
+          <tr><th>暗号化する鍵</th><td>共通鍵</td><td>受信者の<b>公開鍵</b></td></tr>
+          <tr><th>復号する鍵</th><td>同じ共通鍵</td><td>受信者の<b>秘密鍵</b></td></tr>
+          <tr><th>処理の速さ</th><td>速い</td><td>遅い</td></tr>
+          <tr><th>鍵の渡し方</th><td>難しい（鍵配送問題）</td><td>公開鍵は配ってよい</td></tr>
+          <tr><th>代表例</th><td>AES</td><td>RSA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>実際は「いいとこ取り」（HTTPS など）</h2>
+    <div class="hybrid">
+      <div><span class="n">1</span><b style="display:inline">共通鍵で本文を暗号化</b><br>大きなデータは、速い共通鍵で暗号化する。</div>
+      <div><span class="n">2</span><b style="display:inline">共通鍵を公開鍵で包んで送る</b><br>鍵の受け渡しは、相手の公開鍵で暗号化して安全に行う。</div>
+      <div><span class="n">3</span><b style="display:inline">相手が順に開ける</b><br>秘密鍵で共通鍵を取り出し、その共通鍵で本文を復号する。</div>
+    </div>
+  </section>
+
+  <section class="exam" aria-labelledby="exam-title">
+    <h2 id="exam-title" style="margin:0">試験のポイント</h2>
+    <p>「暗号化と復号に<b class="kyo">同じ鍵</b>を使う」→ <b class="kyo">共通鍵暗号方式</b></p>
+    <p>「暗号化に<b class="pub">受信者の公開鍵</b>、復号に<b class="sec">受信者の秘密鍵</b>」→ <b class="pub">公開鍵暗号方式</b></p>
+    <p>デジタル署名は<b>向きが逆</b>です。送信者が<b class="sec">自分の秘密鍵</b>で署名し、受信者が<b class="pub">送信者の公開鍵</b>で確認します。本人からのもので、改ざんされていないことが分かります。</p>
+    <p class="note">暗号化のときは「受信者の鍵」、署名のときは「送信者の鍵」を使う、と覚えると間違えにくいです。</p>
+  </section>
+</main>
+</body>
+</html>

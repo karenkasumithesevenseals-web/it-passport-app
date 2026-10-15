@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<!-- このファイルの役割: アローダイアグラムの問題（令和6年度 問41）を、最早・最遅・余裕の3段階の図で説明するページ。
+     読み方: ブラウザで開くだけで見られる。<style> が見た目、<main> が中身、<script> が図と表を作る部分。
+     文字の書体（Noto Sans JP）はインターネットにつながっているときだけ読み込む。つながっていなくても別の書体で表示される。 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アローダイアグラムの余裕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<style>
+  /* 配置の考え方: 上に答え、中央に3段階で切り替わる図（前から → 後ろから → 差）、下にまとめ。 */
+  :root {
+    --bg: #F4F6F8;
+    --surface: #FFFFFF;
+    --fg: #1B2630;
+    --muted: #536270;
+    --line: #D3DCE3;
+    --early: #0B7285;
+    --late: #B45F06;
+    --crit: #C2374B;
+    --ok: #2F7D5B;
+    --ok-soft: #E2F2EA;
+    --font: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F171D; --surface: #17232B; --fg: #E6EEF2; --muted: #9DB0BB; --line: #2C3D47;
+      --early: #55C4D4; --late: #F2A652; --crit: #FF7B8C; --ok: #6FD3A3; --ok-soft: #153327;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F171D; --surface: #17232B; --fg: #E6EEF2; --muted: #9DB0BB; --line: #2C3D47;
+    --early: #55C4D4; --late: #F2A652; --crit: #FF7B8C; --ok: #6FD3A3; --ok-soft: #153327;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font); line-height: 1.7; padding-inline: 16px; padding-block: 28px 48px; }
+  .page { max-width: 860px; margin-inline: auto; display: flex; flex-direction: column; gap: 24px; }
+  h1 { font-size: clamp(24px, 5vw, 34px); line-height: 1.3; font-weight: 900; margin: 0; text-wrap: balance; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: var(--muted); letter-spacing: .06em; }
+  p { margin: 0; }
+
+  .answer { background: var(--ok-soft); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .answer .big { font-size: 20px; font-weight: 900; color: var(--ok); }
+  .answer .mine { color: var(--muted); font-size: 15px; }
+
+  .words { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .words > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; font-size: 15px; }
+  .words b { display: block; font-size: 16px; }
+  .w-early b { color: var(--early); }
+  .w-late b { color: var(--late); }
+  .w-slack b { color: var(--crit); }
+  .words small { display: block; color: var(--muted); margin-top: 2px; font-size: 13px; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .tabs button { font: inherit; font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .tabs button:focus-visible { outline: 3px solid var(--early); outline-offset: 2px; }
+
+  .figure { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 660px; height: auto; }
+  .edge { stroke: var(--muted); stroke-width: 2.4; fill: none; }
+  .edge.crit { stroke: var(--crit); stroke-width: 5; }
+  .only3 .edge:not(.crit) { opacity: .9; }
+  .arrowhead { fill: var(--muted); }
+  .arrowhead.crit { fill: var(--crit); }
+  .ring { fill: var(--surface); stroke: var(--fg); stroke-width: 2.4; }
+  .ring.crit { stroke: var(--crit); stroke-width: 4; }
+  .ring.answer { stroke: var(--ok); stroke-width: 5; }
+  .nodeText { font-size: 19px; font-weight: 900; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+  .dur { font-size: 17px; font-weight: 700; fill: var(--fg); text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--surface); stroke-width: 6px; stroke-linejoin: round; }
+  .info { font-size: 16px; font-weight: 900; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+  .info.early { fill: var(--early); }
+  .info.late { fill: var(--late); }
+  .info.slack { fill: var(--crit); font-size: 16px; }
+  .info.slack.top { fill: var(--ok); font-size: 18px; }
+  .legend { font-size: 14px; fill: var(--muted); }
+
+  /* 段階ごとの表示切り替え */
+  .v1 .late, .v1 .slack { display: none; }
+  .v2 .early, .v2 .slack { display: none; }
+  .v1 .crit, .v2 .crit { stroke: var(--muted); stroke-width: 2.4; }
+  .v1 .arrowhead.crit, .v2 .arrowhead.crit { fill: var(--muted); }
+  .v1 .ring.answer, .v2 .ring.answer, .v1 .ring.crit, .v2 .ring.crit { stroke: var(--fg); stroke-width: 2.4; }
+
+  .explain { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .explain h3 { margin: 0; font-size: 18px; font-weight: 900; }
+  .explain ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .explain li { font-size: 15px; }
+  .explain code { font-family: var(--font); font-weight: 700; background: var(--bg); padding: 0 6px; border-radius: 6px; white-space: nowrap; }
+  .tag-e { color: var(--early); font-weight: 900; }
+  .tag-l { color: var(--late); font-weight: 900; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 15px; }
+  th, td { padding: 9px 12px; text-align: center; border-bottom: 1px solid var(--line); }
+  tr:last-child td, tr:last-child th { border-bottom: 0; }
+  thead th { color: var(--muted); font-size: 14px; }
+  tbody th { text-align: left; }
+  tr.best td, tr.best th { background: var(--ok-soft); font-weight: 900; }
+  td.num-slack { font-weight: 900; }
+  .note { color: var(--muted); font-size: 14px; }
+</style>
+
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>アローダイアグラムで「余裕」を見つける</h1>
+  </header>
+
+  <section class="answer">
+    <div class="big">正解は エ（C）。余裕が15日で、いちばん大きい</div>
+    <p class="mine">あなたが選んだ ア（D）は、余裕が5日だけでした。</p>
+  </section>
+
+  <section>
+    <h2>3つの言葉（待ち合わせでたとえると）</h2>
+    <div class="words">
+      <div class="w-early"><b>最早（さいそう）時刻</b>いちばん早く着ける時刻<small>すべての道が着くのを待つので、遅い道に合わせる</small></div>
+      <div class="w-late"><b>最遅（さいち）時刻</b>遅くとも着かないといけない時刻<small>これ以上遅れると、全体の完成が遅れる</small></div>
+      <div class="w-slack"><b>余裕</b>最遅 − 最早<small>寝坊しても大丈夫な日数</small></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>図で順番に見る</h2>
+    <div class="tabs" role="group" aria-label="説明の段階">
+      <button type="button" id="tab1" aria-pressed="true">① 前から数える</button>
+      <button type="button" id="tab2" aria-pressed="false">② 後ろから数える</button>
+      <button type="button" id="tab3" aria-pressed="false">③ 差が余裕</button>
+    </div>
+    <div class="figure"><svg id="fig" class="v1" viewBox="0 0 880 440" role="img" aria-label="作業の流れ図。A→B 15日、A→C 10日、B→D 10日、B→E 25日、C→E 15日、D→E 10日、D→F 20日、E→F 15日"></svg></div>
+  </section>
+
+  <section class="explain" id="explain" aria-live="polite"></section>
+
+  <section>
+    <h2>結果の表</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>結合点</th><th>最早</th><th>最遅</th><th>余裕（最遅 − 最早）</th><th>遅らせられる？</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px">余裕が0の点（A→B→E→F）は、遅れるとそのまま全体が遅れます。この道を「クリティカルパス」と呼び、全体の所要時間は 55日 です。</p>
+  </section>
+</main>
+
+<script>
+  // 点の位置、作業（矢印）、日数。計算はすべてこのデータから行う。
+  var NODES = {
+    A: { x: 90, y: 245, side: 1 }, B: { x: 310, y: 165, side: -1 }, C: { x: 310, y: 325, side: 1 },
+    D: { x: 560, y: 165, side: -1 }, E: { x: 560, y: 325, side: 1 }, F: { x: 790, y: 245, side: 1 }
+  };
+  var ORDER = ['A', 'B', 'C', 'D', 'E', 'F'];
+  var EDGES = [
+    { f: 'A', t: 'B', d: 15, lx: 192, ly: 193 }, { f: 'A', t: 'C', d: 10, lx: 186, ly: 306 },
+    { f: 'B', t: 'D', d: 10, lx: 435, ly: 149 }, { f: 'B', t: 'E', d: 25, lx: 458, ly: 232 },
+    { f: 'C', t: 'E', d: 15, lx: 435, ly: 349 }, { f: 'D', t: 'E', d: 10, lx: 584, ly: 245 },
+    { f: 'D', t: 'F', d: 20, lx: 692, ly: 190 }, { f: 'E', t: 'F', d: 15, lx: 684, ly: 306 }
+  ];
+  var R = 25;
+
+  // 最早時刻（前から。合流する点では大きい方）と、最遅時刻（後ろから。分かれる点では小さい方）
+  var early = {}, late = {};
+  ORDER.forEach(function (n) {
+    var ins = EDGES.filter(function (e) { return e.t === n; });
+    early[n] = ins.length ? Math.max.apply(null, ins.map(function (e) { return early[e.f] + e.d; })) : 0;
+  });
+  ORDER.slice().reverse().forEach(function (n) {
+    var outs = EDGES.filter(function (e) { return e.f === n; });
+    late[n] = outs.length ? Math.min.apply(null, outs.map(function (e) { return late[e.t] - e.d; })) : early[n];
+  });
+  var slack = {};
+  ORDER.forEach(function (n) { slack[n] = late[n] - early[n]; });
+  var maxSlackNode = ['B', 'C', 'D', 'E'].reduce(function (a, b) { return slack[b] > slack[a] ? b : a; });
+
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // 図を描く
+  var svg = document.getElementById('fig');
+  var defs = el('defs', {});
+  [['ah', 'arrowhead'], ['ahc', 'arrowhead crit']].forEach(function (m) {
+    var mk = el('marker', { id: m[0], viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' });
+    mk.appendChild(el('path', { d: 'M0,0 L10,5 L0,10 z', 'class': m[1] }));
+    defs.appendChild(mk);
+  });
+  svg.appendChild(defs);
+
+  EDGES.forEach(function (e) {
+    var a = NODES[e.f], b = NODES[e.t];
+    var dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx * dx + dy * dy);
+    var ux = dx / len, uy = dy / len;
+    var crit = slack[e.f] === 0 && slack[e.t] === 0 && early[e.f] + e.d === early[e.t];
+    svg.appendChild(el('line', {
+      'class': 'edge' + (crit ? ' crit' : ''), x1: a.x + ux * (R + 2), y1: a.y + uy * (R + 2),
+      x2: b.x - ux * (R + 8), y2: b.y - uy * (R + 8), 'marker-end': 'url(#' + (crit ? 'ahc' : 'ah') + ')'
+    }));
+  });
+  EDGES.forEach(function (e) { svg.appendChild(el('text', { 'class': 'dur', x: e.lx, y: e.ly }, e.d)); });
+
+  ORDER.forEach(function (n) {
+    var p = NODES[n];
+    var cls = 'ring' + (slack[n] === 0 ? ' crit' : '') + (n === maxSlackNode ? ' answer' : '');
+    svg.appendChild(el('circle', { 'class': cls, cx: p.x, cy: p.y, r: R }));
+    svg.appendChild(el('text', { 'class': 'nodeText', x: p.x, y: p.y }, n));
+    var y1 = p.side > 0 ? p.y + 48 : p.y - 106;
+    var y2 = y1 + 20, y3 = y2 + 22;
+    svg.appendChild(el('text', { 'class': 'info early', x: p.x, y: y1 }, '最早 ' + early[n]));
+    svg.appendChild(el('text', { 'class': 'info late', x: p.x, y: y2 }, '最遅 ' + late[n]));
+    if (n === maxSlackNode) {
+      svg.appendChild(el('text', { 'class': 'info slack top', x: p.x, y: y3 }, '余裕 ' + slack[n] + '（最大）'));
+    } else {
+      svg.appendChild(el('text', { 'class': 'info slack', x: p.x, y: y3 }, '余裕 ' + slack[n]));
+    }
+  });
+  svg.appendChild(el('text', { 'class': 'legend', x: 640, y: 410 }, '矢印の数字＝作業にかかる日数'));
+
+  // 説明文（3段階）
+  var EXPLAIN = {
+    1: '<h3>① 前から数える：いちばん早く着ける時刻（最早）</h3><ul>' +
+       '<li>Aを0日として、矢印の日数を足しながら進みます。</li>' +
+       '<li>道が合流する点では、<b>いちばん遅く着く道に合わせます</b>（大きい方）。全部の作業が終わらないと次へ進めないからです。</li>' +
+       '<li><code>E</code>：B経由 15+25=<b>40</b>、C経由 10+15=25、D経由 25+10=35 → いちばん大きい <span class="tag-e">40</span></li>' +
+       '<li><code>F</code>：D経由 25+20=45、E経由 40+15=<b>55</b> → <span class="tag-e">55</span>。これが全体の完成時間です。</li></ul>',
+    2: '<h3>② 後ろから数える：遅くとも着かないといけない時刻（最遅）</h3><ul>' +
+       '<li>Fを55日（全体の完成時間）にそろえ、ゴールから日数を引きながら戻ります。</li>' +
+       '<li>道が分かれる点では、<b>いちばん厳しい道に合わせます</b>（小さい方）。どれかが遅れると全体に響くからです。</li>' +
+       '<li><code>D</code>：F経由 55−20=35、E経由 40−10=<b>30</b> → いちばん小さい <span class="tag-l">30</span></li>' +
+       '<li><code>B</code>：D経由 30−10=20、E経由 40−25=<b>15</b> → <span class="tag-l">15</span></li></ul>',
+    3: '<h3>③ 差が「余裕」。いちばん大きい点が答え</h3><ul>' +
+       '<li>余裕 ＝ 最遅 − 最早。<b>この点から始まる作業を、何日遅らせても全体が遅れない</b>という日数です。</li>' +
+       '<li><b>C は 25−10＝15日</b>。いちばん大きいので、問題の「開始を最も遅らせることができる結合点」は <b>C</b> です。</li>' +
+       '<li>D は 30−25＝5日。B と E は 0日で、遅らせると全体が遅れます（赤い太線の道）。</li></ul>'
+  };
+
+  var tabs = [1, 2, 3].map(function (n) { return document.getElementById('tab' + n); });
+  function show(n) {
+    svg.setAttribute('class', 'v' + n);
+    tabs.forEach(function (b, i) { b.setAttribute('aria-pressed', String(i + 1 === n)); });
+    document.getElementById('explain').innerHTML = EXPLAIN[n];
+  }
+  tabs.forEach(function (b, i) { b.addEventListener('click', function () { show(i + 1); }); });
+  show(1);
+
+  // 結果の表
+  var tb = document.getElementById('tbody');
+  ['B', 'C', 'D', 'E'].forEach(function (n) {
+    var tr = document.createElement('tr');
+    if (n === maxSlackNode) tr.className = 'best';
+    var verdict = slack[n] === 0 ? '遅らせられない' : slack[n] + '日まで遅らせられる';
+    if (n === maxSlackNode) verdict += '（答え）';
+    [n, early[n], late[n], slack[n], verdict].forEach(function (v, i) {
+      var c = document.createElement(i === 0 ? 'th' : 'td');
+      c.textContent = i === 0 ? '結合点 ' + v : v;
+      if (i === 3) c.className = 'num-slack';
+      tr.appendChild(c);
+    });
+    tb.appendChild(tr);
+  });
+</script>
+</body>
+</html>
